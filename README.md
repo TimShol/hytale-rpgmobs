@@ -35,6 +35,7 @@ EliteMobs was built to transform standard NPCs into tiered elites with stronger 
 ## Links
 
 [![CurseForge](https://img.shields.io/badge/CurseForge-EliteMobs-F16436?style=for-the-badge&logo=curseforge&logoColor=white)](https://www.curseforge.com/hytale/mods/elitemobs)
+[![Docs](https://img.shields.io/badge/Docs-eliteMobs-2E6E5E?style=for-the-badge&logo=readthedocs&logoColor=white)](https://docs.elitemobs.frotty27.com/)
 
 Compatibility Mods:
 - [EliteMobs RPG Leveling Compatibility](https://www.curseforge.com/hytale/mods/elitemobs-rpgleveling-compat)
