@@ -32,6 +32,13 @@ EliteMobs transforms standard NPCs into tiered elites with stronger stats, disti
 3. Edit YAML files and reload
 ```
 
+## Links
+
+[![CurseForge](https://img.shields.io/badge/CurseForge-EliteMobs-F16436?style=for-the-badge&logo=curseforge&logoColor=white)](https://www.curseforge.com/hytale/mods/elitemobs)
+
+Compatibility Mods (expandable list):
+- [EliteMobs RPG Leveling Compatibility](https://www.curseforge.com/hytale/mods/elitemobs-rpgleveling-compat)
+
 ## Documentation
 
 Docs live in `docs/` and are built with Mintlify.
@@ -77,7 +84,7 @@ Repeat until all remaining elite NPCs are removed.
 
 ## Compatibility
 
-EliteMobs is designed to work with other mods. If you use RPG Leveling, install the EliteMobs RPG Leveling Compatibility mod for proper nameplate and tier integration.
+Elitemobs is designed to work with other mods. If you use RPG Leveling, install the compatibility mod for proper nameplate and tier integration.
 
 ## License
 
