@@ -1,13 +1,13 @@
 ---
 title: Consumables
-description: Configuring potion and food behavior for elite mobs.
+description: Configuring potion and food behavior for the player.
 ---
 
-`consumables.yml` defines how items consumed by elites behave during combat. This mainly affects the **Heal Potion** ability, controlling how fast elites drink and how much it slows them down.
+`consumables.yml` defines how items consumed by players behave during combat. This mainly affects player healing items, controlling how fast players drink and how much it slows them down.
 
 ## Potion Behavior
 
-When an elite drinks a potion, it slows down and plays a drinking animation. These settings control the timing and movement penalty.
+When a player drinks a potion, they slow down and play a drinking animation. These settings control the timing and movement penalty. This is mainly done to balance the difficulty of higher tier elites. The default vanilla values felt a bit too sluggish for how paced the combat is.
 
 ```yaml
 Consumables:
@@ -23,8 +23,8 @@ Consumables:
 
 | Setting | What it does | Default |
 | :--- | :--- | :--- |
-| `horizontalSpeedMultiplier` | Movement speed while consuming. `0.7` means the mob moves at 70% speed (30% slower). Lower values make it easier for players to close distance during the animation. | `0.7` |
-| `consumeDuration` | Time in seconds to finish consuming the item. Longer durations give players more time to interrupt the heal. | `1.8` (big) / `1.2` (small) |
+| `horizontalSpeedMultiplier` | Movement speed while consuming. `0.7` means the player moves at 70% speed (30% slower). Lower values make it easier for enemies to close distance during the animation. | `0.7` |
+| `consumeDuration` | Time in seconds to finish consuming the item. Longer durations give enemies more time to interrupt the heal. | `1.8` (big) / `1.2` (small) |
 
 ## Food Tiers
 
@@ -46,4 +46,4 @@ Consumables:
       consumeDuration: 1.4
 ```
 
-**Tip:** If heals feel too easy for elites to complete, increase `consumeDuration` to give players a longer interrupt window. If elites are too easy to kite while drinking, raise `horizontalSpeedMultiplier` closer to `1.0`.
+**Tip:** If drinking or eating feels too fast, increase `consumeDuration`. If players are too fast while drinking, lower `horizontalSpeedMultiplier`.
