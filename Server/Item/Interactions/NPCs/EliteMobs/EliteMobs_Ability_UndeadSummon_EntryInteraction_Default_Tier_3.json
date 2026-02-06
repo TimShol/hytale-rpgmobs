@@ -1,0 +1,36 @@
+{
+  "Type": "Serial",
+  "Interactions": [
+    {
+      "Type": "Simple",
+      "RunTime": 2.0,
+      "Effects": {
+        "MovementEffects": {
+          "DisableAll": true
+        },
+        "ItemPlayerAnimationsId": "Staff",
+        "ItemAnimationId": "SwingTwoHandedHorizontalRight",
+        "Particles": [
+          {
+            "SystemId": "Undead_Digging",
+            "TargetEntityPart": "Entity",
+            "PositionOffset": {
+              "Y": 1.0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "Type": "Simple",
+      "RunTime": 0.2,
+      "Effects": {
+        "SpawnMarkers": [
+          {
+            "MarkerId": "EliteMobs_UndeadBow_Summon_Marker_Tier_3"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "Type": "Serial",
+  "Interactions": [
+    {
+      "Type": "Simple",
+      "RunTime": 0.5,
+      "Effects": {
+        "MovementEffects": {
+          "DisableAll": true
+        },
+        "ItemPlayerAnimationsId": "Battleaxe",
+        "ItemAnimationId": "DownstrikeCharging"
+      }
+    },
+    {
+      "Type": "ApplyForce",
+      "Effects": {
+        "ItemPlayerAnimationsId": "Item",
+        "ItemAnimationId": "DashBackward",
+        "ClearAnimationOnFinish": true
+      },
+      "Direction": {
+        "X": 0,
+        "Y": 0.5,
+        "Z": 5.0
+      },
+      "WaitForGround": true,
+      "Force": 530.0,
+      "ChangeVelocityType": "Add",
+      "VelocityConfig": {
+        "AirResistance": 0.97,
+        "AirResistanceMax": 0.96,
+        "GroundResistance": 0.94,
+        "GroundResistanceMax": 0.82,
+        "Threshold": 0.1,
+        "Style": "Exp"
+      }
+    },
+    {
+      "Type": "Simple",
+      "RunTime": 3.0,
+      "Effects": {
+        "MovementEffects": {
+          "DisableAll": true
+        },
+        "ItemPlayerAnimationsId": "Item",
+        "ItemAnimationId": "Consume",
+        "WorldSoundEventId": "SFX_Health_Potion_Low_Drink",
+        "Particles": [
+          {
+            "SystemId": "Potion_Health_Heal",
+            "TargetEntityPart": "Entity",
+            "TargetNodeName": "Pelvis"
+          },
+          {
+            "SystemId": "Potion_Health_Implosion",
+            "TargetEntityPart": "Entity",
+            "PositionOffset": {
+              "Y": 1.0
+            }
+          }
+        ],
+        "ClearAnimationOnFinish": true,
+        "ClearSoundEventOnFinish": true
+      }
+    },
+    {
+      "Type": "ApplyEffect",
+      "EffectId": "EliteMobs_Effect_InstantHeal_Tier_4"
+    }
+  ]
+}

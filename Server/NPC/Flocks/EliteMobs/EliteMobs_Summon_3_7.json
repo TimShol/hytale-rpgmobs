@@ -1,0 +1,11 @@
+{
+  "Type": "Weighted",
+  "MinSize": 3,
+  "SizeWeights": [
+    35,
+    25,
+    20,
+    12,
+    8
+  ]
+}

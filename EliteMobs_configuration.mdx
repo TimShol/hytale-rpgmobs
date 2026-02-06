@@ -1,0 +1,29 @@
+---
+title: Configuration
+description: A map of all EliteMobs YAML files and what they control.
+---
+
+# Configuration
+
+EliteMobs is configured through these YAML files. Defaults live in code and YAML overrides are applied on boot. Missing keys are re-added automatically.
+
+## File Map
+
+- `main.yml` global systems, spawning, health and damage scaling, compatibility, gear durability, asset generator
+- `mobs.yml` mob matching rules and weapon overrides
+- `abilities.yml` elite abilities and their gates
+- `effects.yml` tiered status effects
+- `drops.yml` loot tables and extra rare drops
+- `catalogs.yml` weapon and armor catalogs, rarity rules
+- `consumables.yml` consumable movement and duration tuning
+- `visuals.yml` model scaling and nameplates
+
+## Schema Notes
+
+- Arrays with 5 entries are tier-based (Tier 1 to Tier 5).
+- Many sections support per-environment overrides.
+- Values are read at boot and reconciled with defaults.
+
+## Best Practice
+
+Keep edits minimal and version-controlled. The mod will reconcile missing keys back into the file on boot, so avoid deleting sections entirely.

@@ -1,0 +1,30 @@
+---
+title: FAQ
+description: Common EliteMobs questions and quick answers.
+---
+
+# FAQ
+
+## Why did my YAML file revert or change?
+
+EliteMobs reconciles configs on boot. Defaults are the source of truth and missing keys are re-added automatically. Keep your edits minimal and avoid deleting sections.
+
+## How do I make elites rarer?
+
+Lower the values in `Spawning.spawnChancePerTier` in `main.yml`, or disable specific environments in `environmentTierSpawns`.
+
+## How do I disable elites in a zone?
+
+Set `enabled: false` for that environment in `main.yml` under `environmentTierSpawns`.
+
+## How do I change elite names?
+
+Use `visuals.yml` under `Nameplates.tierPrefixesByFamily` and `nameplatePrefixPerTier`.
+
+## How do I prevent an NPC from becoming elite?
+
+Add a rule in `mobs.yml` and set `enabled: false`, or exclude it using `matchExcludes`.
+
+## Where are templates and assets stored?
+
+Generated templates live under `Server/` in the EliteMobs mod folder, including interactions, effects, and audio.

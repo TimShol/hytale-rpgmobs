@@ -1,0 +1,45 @@
+---
+title: Mob Rules
+description: Decide which NPCs can become elites and how weapon overrides work.
+---
+
+# Mob Rules
+
+Mob rules are in `mobs.yml` under `Spawning.rules`. The first matching rule wins.
+
+## Basic Rule Fields
+
+- `enabled` toggle for the rule
+- `matchExact` list of NPC ids to match
+- `matchStartsWith` and `matchContains` for fuzzy matching
+- `matchExcludes` for disallowing ids
+
+## Weapon Overrides
+
+You can override weapons per tier and gate by weapon id fragments:
+
+```yaml
+Goblin_Duke:
+  enabled: true
+  matchExact: ["Goblin_Duke"]
+  enableWeaponOverrideForTier: [true, true, true, true, true]
+  weaponOverrideMode: ALWAYS
+  weaponIdMustContain: ["club"]
+```
+
+`weaponOverrideMode` supports modes like `ALWAYS`, `ONLY_IF_EMPTY`, or `NONE`.
+
+## Example: Excluding Ranged Weapons
+
+```yaml
+Goblin_Hermit:
+  enabled: true
+  matchExact: ["Goblin_Hermit"]
+  weaponOverrideMode: ALWAYS
+  weaponIdMustNotContain: ["shortbow", "crossbow", "staff", "pickaxe", "bomb", "kunai", "blunderbuss", "spellbook"]
+```
+
+## Tips
+
+- Use `matchExact` for precision, `matchContains` for broad families.
+- Keep per-tier overrides consistent with your loot and catalog rules.

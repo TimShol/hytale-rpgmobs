@@ -1,0 +1,37 @@
+---
+title: Drops
+description: Control elite loot, rare drops, and tier ranges.
+---
+
+# Drops
+
+Loot rules are in `drops.yml` under `Loot`.
+
+## Base Drop Chances
+
+```yaml
+Loot:
+  dropArmorPieceChance: 0.05
+  dropOffhandItemChance: 0.05
+  dropWeaponChance: 0.05
+```
+
+## Extra Drops
+
+Extra drops are tier-bounded and can be configured per item:
+
+```yaml
+Loot:
+  extraDrops:
+    - itemId: "Ingredient_Life_Essence"
+      chance: 1.0
+      minTierInclusive: 3
+      maxTierInclusive: 4
+      minQty: 11
+      maxQty: 21
+```
+
+## Tips
+
+- Keep tier ranges aligned with your difficulty curve.
+- Use smaller ranges for high-value materials.

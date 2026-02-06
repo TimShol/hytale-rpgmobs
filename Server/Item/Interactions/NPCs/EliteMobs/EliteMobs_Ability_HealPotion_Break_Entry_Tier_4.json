@@ -1,0 +1,7 @@
+{
+  "Type": "Simple",
+  "Effects": {
+    "WorldSoundEventId": "SFX_Shield_T1_Break",
+    "ClearSoundEventOnFinish": true
+  }
+}

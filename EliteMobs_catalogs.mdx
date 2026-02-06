@@ -1,0 +1,54 @@
+---
+title: Gear Catalogs
+description: Weapon and armor catalogs plus rarity rules.
+---
+
+# Gear Catalogs
+
+Catalogs live in `catalogs.yml`.
+
+## Armor Catalog
+
+- `armorMaterials` lists available material folders
+- `armorPiecesToEquipPerTier` defines how many armor pieces elites equip per tier
+
+```yaml
+Gear:
+  armorPiecesToEquipPerTier:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+```
+
+## Weapon Catalog
+
+`weaponCatalog` is the full list of allowed weapon IDs.
+
+## Rarity Rules
+
+Weapon and armor rarity is derived from substring matching:
+
+```yaml
+Gear:
+  weaponRarityRulesContains:
+    copper: "common"
+    iron: "uncommon"
+    thorium: "rare"
+    adamantite: "epic"
+```
+
+## Tier Rarity Weights
+
+```yaml
+Gear:
+  tierAllowedRarities:
+    - ["common"]
+    - ["uncommon"]
+    - ["rare"]
+    - ["epic"]
+    - ["epic", "legendary"]
+```
+
+These lists determine which rarities are allowed per tier and how likely each is to appear.

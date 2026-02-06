@@ -1,0 +1,44 @@
+---
+title: Spawning
+description: Control where elites spawn and how tiers are distributed per environment.
+---
+
+# Spawning
+
+Spawning rules are in `main.yml` under `Spawning`.
+
+## Base Tier Chances
+
+```yaml
+Spawning:
+  spawnChancePerTier:
+    - 0.46
+    - 0.28
+    - 0.16
+    - 0.08
+    - 0.04
+```
+
+## Per-Environment Overrides
+
+Enable per-environment tier spawns and set the list by environment ID.
+
+```yaml
+Spawning:
+  enableEnvironmentTierSpawns: true
+  environmentTierSpawns:
+    Env_Zone1:
+      enabled: true
+      spawnChancePerTier: [0.6, 0.25, 0.15, 0.0, 0.0]
+```
+
+If an environment is not listed, the base `spawnChancePerTier` applies.
+
+## Reconcile Window
+
+After a config reload, existing elites can be reconciled over a window of ticks:
+
+```yaml
+Reconcile:
+  reconcileWindowTicks: 40
+```

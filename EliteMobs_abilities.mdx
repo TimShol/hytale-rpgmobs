@@ -1,0 +1,45 @@
+---
+title: Abilities
+description: Elite ability tuning, gates, and tier-based cooldowns.
+---
+
+# Abilities
+
+Abilities are configured in `abilities.yml` under `byId`.
+
+## Common Fields
+
+- `gate` rules for role and weapon requirements
+- `minRange` and `maxRange` for activation
+- `chancePerTier` for per-tier activation chance
+- `cooldownSecondsPerTier` for per-tier cooldowns
+- `isEnabledPerTier` to toggle a tier
+
+## Example: Charge Leap
+
+```yaml
+byId:
+  charge_leap:
+    gate:
+      roleMustNotContain: ["Eye_Void", "Crawler_Void", "Skeleton_Burnt_Praetorian"]
+      weaponIdMustNotContain: ["shortbow", "crossbow", "staff", "pickaxe", "bomb", "kunai", "blunderbuss", "spellbook"]
+    minRange: 9.0
+    maxRange: 30.0
+    chancePerTier: [1.0, 1.0, 1.0, 1.0, 1.0]
+    cooldownSecondsPerTier: [0.0, 0.0, 0.0, 16.0, 20.0]
+```
+
+## Example: Heal Potion
+
+```yaml
+byId:
+  heal_potion:
+    minHealthTriggerPercent: 0.5
+    maxHealthTriggerPercent: 0.5
+    npcDrinkItemId: "Potion_Health_Greater"
+    chancePerTier: [0.0, 0.0, 0.0, 1.0, 1.0]
+```
+
+## Templates
+
+Abilities reference interaction templates for visuals and behavior. These are pre-generated in `Server/Item/Interactions` and `Server/Item/RootInteractions`.

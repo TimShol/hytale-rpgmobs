@@ -1,0 +1,25 @@
+---
+title: Effects
+description: Tier-based effects that apply to elite mobs.
+---
+
+# Effects
+
+Effects are configured in `effects.yml` under `byId`.
+
+## Example: Projectile Resistance
+
+```yaml
+byId:
+  projectile_resistance:
+    amountMultiplierPerTier:
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.7
+      - 0.85
+    infinite: true
+    isEnabledPerTier: [false, false, false, true, true]
+```
+
+Effects reference templates in `Server/Entity/Effects/EliteMobs`.

@@ -1,0 +1,24 @@
+---
+title: Consumables
+description: Elite consumable timing and movement modifiers.
+---
+
+# Consumables
+
+Consumable tuning is in `consumables.yml`.
+
+## Fields
+
+- `horizontalSpeedMultiplier` slows movement during consume
+- `consumeDuration` controls how long the consume takes
+
+```yaml
+Consumables:
+  byId:
+    food_tier1:
+      horizontalSpeedMultiplier: 0.7
+      consumeDuration: 1.0
+    big_potions:
+      horizontalSpeedMultiplier: 0.7
+      consumeDuration: 1.8
+```

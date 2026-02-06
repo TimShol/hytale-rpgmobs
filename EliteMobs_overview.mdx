@@ -1,0 +1,61 @@
+---
+title: Overview
+description: What EliteMobs adds, how tiers work, and the core gameplay loop.
+---
+
+# Overview
+
+EliteMobs adds tiered elite variants of normal NPCs. Elites spawn with boosted health and damage, tiered nameplates, and gear. Higher tiers are rarer and stronger.
+
+## Tier System
+
+Elite tiers are 1 through 5. Spawn weights define how common each tier is. Base chances live in `main.yml`:
+
+```yaml
+Spawning:
+  spawnChancePerTier:
+    - 0.46
+    - 0.28
+    - 0.16
+    - 0.08
+    - 0.04
+```
+
+You can override those per environment to create high-tier zones.
+
+## Power Scaling
+
+Elites scale health and damage by tier:
+
+```yaml
+Health:
+  healthMultiplierPerTier:
+    - 0.1
+    - 0.5
+    - 1.1
+    - 1.8
+    - 2.6
+
+Damage:
+  mobDamageMultiplierPerTier:
+    - 0.6
+    - 1.1
+    - 1.6
+    - 2.1
+    - 2.6
+```
+
+## Gear And Loot
+
+Elites can equip tier-appropriate gear and drop rarer materials. Gear catalogs and rarity rules are in `catalogs.yml`. Loot rules are in `drops.yml`.
+
+## Abilities And Effects
+
+Abilities (like `charge_leap` and `heal_potion`) and effects (like projectile resistance) are configured in `abilities.yml` and `effects.yml`.
+
+## Where To Start
+
+If you want to tune difficulty, start with:
+- `main.yml` for tier chances and scaling
+- `visuals.yml` for nameplates
+- `drops.yml` for rewards

@@ -1,0 +1,7 @@
+{
+  "Model": "NPC_Spawn_Marker",
+  "NPCs": [],
+  "ManualTrigger": true,
+  "ExclusionRadius": 0,
+  "MaxDropHeight": 4
+}

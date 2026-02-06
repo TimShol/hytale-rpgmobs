@@ -1,0 +1,149 @@
+---
+title: Introduction
+description: EliteMobs adds tiered elite variants, gear, drops, and abilities to Hytale mobs, with easy YAML configuration.
+---
+
+# Introduction
+
+EliteMobs turns normal NPCs into tiered elite variants with boosted stats, distinctive nameplates, and unique gear. Elites can spawn per environment, scale in health and damage by tier, and gain special abilities and effects. All of it is driven by a small set of YAML config files.
+
+## EliteMobs
+
+EliteMobs focuses on three things:
+- Variety: elites feel different with tiered stats, gear, and nameplates.
+- Control: tune spawn chances per environment and per tier.
+- Modularity: abilities, effects, drops, and visuals each live in their own config file.
+
+## Quick Links
+
+Use these slugs for your docs navigation:
+- `overview` for a feature summary and tier system
+- `configuration` for an index of all YAML files
+- `mobs` for mob rules and tier overrides
+- `abilities` for ability tuning and gates
+- `drops` for loot tables and rare drops
+- `visuals` for model scaling and nameplates
+- `faq` for common questions
+
+## How It Works
+
+Elites are determined by spawn rules and tier probabilities. By default, the base tier distribution is:
+
+```yaml
+Spawning:
+  spawnChancePerTier:
+    - 0.46
+    - 0.28
+    - 0.16
+    - 0.08
+    - 0.04
+```
+
+Per-environment overrides can replace those values when `enableEnvironmentTierSpawns` is enabled.
+
+## Scaling By Tier
+
+Health and damage scale by tier in `main.yml`:
+
+```yaml
+Health:
+  healthMultiplierPerTier:
+    - 0.1
+    - 0.5
+    - 1.1
+    - 1.8
+    - 2.6
+
+Damage:
+  mobDamageMultiplierPerTier:
+    - 0.6
+    - 1.1
+    - 1.6
+    - 2.1
+    - 2.6
+```
+
+## Nameplates And Visuals
+
+Model scale and tiered nameplates are configured in `visuals.yml`:
+
+```yaml
+Model:
+  enableModelScaling: true
+  modelScaleMultiplierPerTier:
+    - 0.74
+    - 0.85
+    - 0.96
+    - 1.07
+    - 1.18
+
+Nameplates:
+  nameplatePrefixPerTier:
+    - "[•]"
+    - "[• •]"
+    - "[• • •]"
+    - "[• • • •]"
+    - "[• • • • •]"
+```
+
+Family-specific tier prefixes let you theme different factions (goblins, zombies, skeletons, trorks, and more).
+
+## Abilities And Effects
+
+Abilities live in `abilities.yml` and can be gated by NPC role or weapon type. Example:
+
+```yaml
+byId:
+  charge_leap:
+    gate:
+      roleMustNotContain: ["Eye_Void", "Crawler_Void", "Skeleton_Burnt_Praetorian"]
+      weaponIdMustNotContain: ["shortbow", "crossbow", "staff", "pickaxe", "bomb", "kunai", "blunderbuss", "spellbook"]
+    minRange: 9.0
+    maxRange: 30.0
+    chancePerTier: [1.0, 1.0, 1.0, 1.0, 1.0]
+    cooldownSecondsPerTier: [0.0, 0.0, 0.0, 16.0, 20.0]
+```
+
+Effects live in `effects.yml` and enable tiered buffs such as projectile resistance.
+
+## Loot And Gear
+
+Drops and gear are split across `drops.yml` and `catalogs.yml`:
+- `drops.yml` controls drop chances and extra loot per tier.
+- `catalogs.yml` defines the weapon and armor catalogs and rarity rules.
+
+Example extra drop rules:
+
+```yaml
+Loot:
+  extraDrops:
+    - itemId: "Ingredient_Life_Essence"
+      chance: 1.0
+      minTierInclusive: 3
+      maxTierInclusive: 4
+      minQty: 11
+      maxQty: 21
+```
+
+## Configuration Files
+
+Here is the core config layout:
+- `main.yml` global systems, spawning, scaling, and gear durability
+- `mobs.yml` mob match rules and weapon overrides
+- `abilities.yml` elite abilities and gates
+- `effects.yml` elite effects
+- `drops.yml` loot tables
+- `catalogs.yml` weapon and armor catalogs
+- `consumables.yml` consumable timing and movement slowdowns
+- `visuals.yml` model scaling and nameplate rules
+
+## Screenshots
+
+Add your screenshots here. Suggested set:
+- Tiered nameplates in the wild
+- A high-tier elite with gear
+- A boss using `charge_leap`
+
+## Version
+
+Config schema version: `1.1.0`
