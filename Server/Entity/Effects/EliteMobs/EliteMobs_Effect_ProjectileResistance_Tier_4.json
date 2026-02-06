@@ -1,8 +1,0 @@
-{
-  "Infinite": true,
-  "DamageResistance": {
-    "Projectile": [
-      { "Amount": 0.7, "CalculationType": "Multiplicative" }
-    ]
-  }
-}

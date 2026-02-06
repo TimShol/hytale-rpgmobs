@@ -38,5 +38,8 @@ bin/
 ### VS Code ###
 .vscode/
 
+# Hytale Generated Assets
+Server/
+
 ### Mac OS ###
 .DS_Store.idea/
