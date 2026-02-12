@@ -11,7 +11,7 @@ EliteMobs was built to transform standard NPCs into tiered elites with stronger 
 <img src="icons/EliteMobs-Icon-128.png" alt="EliteMobs Plugin" width="150"/><br/><br/>
 <strong>EliteMobs Plugin</strong><br/><br/>
 <a href="https://www.curseforge.com/hytale/mods/elitemobs">
-<img src="https://img.shields.io/badge/CurseForge-EliteMobs-F16436?style=for-the-badge&logo=curseforge&logoColor=white" alt="Download EliteMobs"/>
+<img src="https://img.shields.io/badge/Download-F16436?style=for-the-badge&logo=curseforge&logoColor=white" alt="Download EliteMobs"/>
 </td>
 </tr>
 </table>
