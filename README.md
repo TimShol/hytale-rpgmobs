@@ -98,4 +98,4 @@ EliteMobs is designed to work with other mods. If RPG Leveling is used, install 
 
 ## License
 
-MIT License
+This project is licensed under the [MIT License](LICENSE).
