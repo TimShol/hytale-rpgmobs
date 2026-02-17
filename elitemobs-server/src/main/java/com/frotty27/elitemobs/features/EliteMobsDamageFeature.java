@@ -4,6 +4,7 @@ import com.frotty27.elitemobs.components.EliteMobsTierComponent;
 import com.frotty27.elitemobs.config.EliteMobsConfig;
 import com.frotty27.elitemobs.plugin.EliteMobsPlugin;
 import com.frotty27.elitemobs.systems.combat.EliteMobsDamageDealtSystem;
+import com.frotty27.elitemobs.systems.combat.EliteMobsFriendlyFireSystem;
 import com.frotty27.elitemobs.systems.death.EliteMobsDeathSystem;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.Ref;
@@ -39,5 +40,6 @@ public final class EliteMobsDamageFeature implements IEliteMobsFeature {
     public void registerSystems(EliteMobsPlugin plugin) {
         plugin.registerSystem(new EliteMobsDeathSystem(plugin));
         plugin.registerSystem(new EliteMobsDamageDealtSystem(plugin));
+        plugin.registerSystem(new EliteMobsFriendlyFireSystem(plugin));
     }
 }

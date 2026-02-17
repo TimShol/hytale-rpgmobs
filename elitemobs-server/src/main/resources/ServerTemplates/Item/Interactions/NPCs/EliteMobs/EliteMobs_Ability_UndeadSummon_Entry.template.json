@@ -3,33 +3,36 @@
   "Interactions": [
     {
       "Type": "Simple",
-      "RunTime": 2.0,
+      "RunTime": 0.01
+    },
+    {
+      "Type": "Simple",
+      "RunTime": 3.0,
       "Effects": {
         "MovementEffects": {
           "DisableAll": true
         },
         "ItemPlayerAnimationsId": "Staff",
-        "ItemAnimationId": "SwingTwoHandedHorizontalRight",
+        "ItemAnimationId": "CastSummonCharging",
+        "WorldSoundEventId": "SFX_Skeleton_Praetorian_Spawn_1",
         "Particles": [
           {
-            "SystemId": "Undead_Digging",
-            "TargetEntityPart": "Entity",
-            "PositionOffset": {
-              "Y": 1.0
-            }
+            "SystemId": "Praetorian_Summon_Ground",
+            "DetachedFromModel": true
           }
         ]
       }
     },
     {
       "Type": "Simple",
-      "RunTime": 0.2,
+      "RunTime": 0.3,
       "Effects": {
-        "SpawnMarkers": [
-          {
-            "MarkerId": ${features.UndeadSummon.config.templates.summonMarker}
-          }
-        ]
+        "MovementEffects": {
+          "DisableAll": true
+        },
+        "ItemPlayerAnimationsId": "Staff",
+        "ItemAnimationId": "CastSummonCharged",
+        "ClearAnimationOnFinish": true
       }
     }
   ]

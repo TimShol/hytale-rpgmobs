@@ -1,7 +1,5 @@
 package com.frotty27.elitemobs.systems.visual;
 
-import java.util.Random;
-
 import com.frotty27.elitemobs.components.EliteMobsTierComponent;
 import com.frotty27.elitemobs.components.lifecycle.EliteMobsModelScalingComponent;
 import com.frotty27.elitemobs.config.EliteMobsConfig;
@@ -23,6 +21,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import org.jspecify.annotations.NonNull;
 
+import java.util.Random;
+
 import static com.frotty27.elitemobs.utils.ClampingHelpers.clampFloat;
 
 public class ModelScalingSystem extends EntityTickingSystem<EntityStore> {
@@ -39,7 +39,7 @@ public class ModelScalingSystem extends EntityTickingSystem<EntityStore> {
 
     @Override
     public Query<EntityStore> getQuery() {
-        return Query.and(NPCEntity.getComponentType(), plugin.getEliteMobsComponent());
+        return Query.and(NPCEntity.getComponentType(), plugin.getEliteMobsComponentType());
     }
 
     @Override
@@ -50,14 +50,14 @@ public class ModelScalingSystem extends EntityTickingSystem<EntityStore> {
         if (!plugin.shouldReconcileThisTick()) return;
 
         Ref<EntityStore> npcRef = chunk.getReferenceTo(entityIndex);
-        EliteMobsModelScalingComponent modelComp = store.getComponent(npcRef, plugin.getModelScalingComponent());
+        EliteMobsModelScalingComponent modelComp = store.getComponent(npcRef, plugin.getModelScalingComponentType());
         if (modelComp == null || !modelComp.scaledApplied || modelComp.appliedScale <= 0.001f) return;
 
         if (modelComp.resyncVerified) return;
 
-        boolean scaled = tryScaleModelComponent(npcRef, store, commandBuffer, modelComp.appliedScale, false);
+        tryScaleModelComponent(npcRef, store, commandBuffer, modelComp.appliedScale, false);
         modelComp.resyncVerified = true;
-        commandBuffer.replaceComponent(npcRef, plugin.getModelScalingComponent(), modelComp);
+        commandBuffer.replaceComponent(npcRef, plugin.getModelScalingComponentType(), modelComp);
     }
 
 
@@ -140,8 +140,10 @@ public class ModelScalingSystem extends EntityTickingSystem<EntityStore> {
         EliteMobsConfig config = plugin.getConfig();
         if (config == null || !config.modelConfig.enableModelScaling) return;
 
-        EliteMobsTierComponent tierComponent = store.getComponent(npcRef, plugin.getEliteMobsComponent());
-        EliteMobsModelScalingComponent modelScalingComponent = store.getComponent(npcRef, plugin.getModelScalingComponent());
+        EliteMobsTierComponent tierComponent = store.getComponent(npcRef, plugin.getEliteMobsComponentType());
+        EliteMobsModelScalingComponent modelScalingComponent = store.getComponent(npcRef,
+                                                                                  plugin.getModelScalingComponentType()
+        );
 
         if (tierComponent == null) return;
 
@@ -167,7 +169,7 @@ public class ModelScalingSystem extends EntityTickingSystem<EntityStore> {
         if (modelScalingComponent != null) {
             modelScalingComponent.scaledApplied = true;
             modelScalingComponent.appliedScale = scaleMultiplier;
-            commandBuffer.replaceComponent(npcRef, plugin.getModelScalingComponent(), modelScalingComponent);
+            commandBuffer.replaceComponent(npcRef, plugin.getModelScalingComponentType(), modelScalingComponent);
         }
     }
 }

@@ -1,11 +1,11 @@
-package com.frotty27.elitemobs.api.event;
-
-import java.util.List;
+package com.frotty27.elitemobs.api.events;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.math.vector.Vector3d;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+
+import java.util.List;
 
 /**
  * Event fired when an elite mob's drops are about to be spawned into the world.

@@ -1,4 +1,4 @@
-package com.frotty27.elitemobs.api.event;
+package com.frotty27.elitemobs.api.events;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.math.vector.Vector3d;

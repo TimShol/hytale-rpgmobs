@@ -21,6 +21,6 @@ final class EliteMobsSpawnTickHandler {
             @NonNull Store<EntityStore> entityStore,
             @NonNull CommandBuffer<EntityStore> commandBuffer
     ) {
-        system.processTick(deltaTimeSeconds, entityIndex, archetypeChunk, entityStore, commandBuffer);
+        system.processTick(entityIndex, archetypeChunk, entityStore, commandBuffer);
     }
 }

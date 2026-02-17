@@ -14,7 +14,7 @@ public final class EliteMobsHealthScalingFeature implements IEliteMobsFeature {
 
     @Override
     public String getFeatureKey() {
-        return "HealthMult";
+        return "HealthScaling";
     }
 
     @Override

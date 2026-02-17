@@ -1,5 +1,17 @@
 package com.frotty27.elitemobs.assets;
 
+import com.frotty27.elitemobs.config.EliteMobsConfig;
+import com.frotty27.elitemobs.exceptions.FeatureConfigurationException;
+import com.frotty27.elitemobs.exceptions.ReflectiveAccessException;
+import com.frotty27.elitemobs.exceptions.TemplatePlaceholderException;
+import com.frotty27.elitemobs.exceptions.TemplateSyntaxException;
+import com.frotty27.elitemobs.features.EliteMobsFeatureRegistry;
+import com.frotty27.elitemobs.features.EliteMobsUndeadSummonAbilityFeature;
+import com.frotty27.elitemobs.features.IEliteMobsFeature;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.hypixel.hytale.logger.HytaleLogger;
+
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
@@ -13,18 +25,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import com.frotty27.elitemobs.config.EliteMobsConfig;
-import com.frotty27.elitemobs.exceptions.FeatureConfigurationException;
-import com.frotty27.elitemobs.exceptions.ReflectiveAccessException;
-import com.frotty27.elitemobs.exceptions.TemplatePlaceholderException;
-import com.frotty27.elitemobs.exceptions.TemplateSyntaxException;
-import com.frotty27.elitemobs.features.EliteMobsFeatureRegistry;
-import com.frotty27.elitemobs.features.EliteMobsUndeadSummonAbilityFeature;
-import com.frotty27.elitemobs.features.IEliteMobsFeature;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.hypixel.hytale.logger.HytaleLogger;
-
 import static com.frotty27.elitemobs.assets.TemplateNameGenerator.TEMPLATE_SUFFIX;
 
 public final class EliteMobsAssetGenerator {
@@ -33,11 +33,7 @@ public final class EliteMobsAssetGenerator {
 
     private static final String TEMPLATE_ROOT = "ServerTemplates";
     private static final String OUTPUT_ROOT = "Server";
-
-
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\$\\{([^}]+)}");
-
-
     private static final String RAW_PREFIX = "raw.";
 
     private static final Gson GSON = new GsonBuilder()
@@ -45,7 +41,6 @@ public final class EliteMobsAssetGenerator {
             .create();
 
     private EliteMobsAssetGenerator() {}
-
 
     public static void generateAll(Path eliteMobsDirectory, EliteMobsConfig config, boolean cleanFirst) {
         Path outputRootDirectory = eliteMobsDirectory.resolve(OUTPUT_ROOT);
@@ -56,6 +51,10 @@ public final class EliteMobsAssetGenerator {
 
             int writtenFileCount = 0;
             int processedJsonFileCount = 0;
+
+            // Populate spawn marker entries before template processing so the
+            // marker template can embed valid NPC entries (build-8 rejects empty NPCs).
+            config.populateSummonMarkerEntriesIfEmpty();
 
             DotModelIndex modelIndex = DotModelIndex.build(config);
 
@@ -82,6 +81,18 @@ public final class EliteMobsAssetGenerator {
 
                         if (templateText.contains("${") && !templateText.contains("}")) {
                             throw new TemplateSyntaxException("Malformed placeholder in template: " + sourcePath);
+                        }
+
+                        // Skip spawn marker templates whose NPCs would be empty (build-8 rejects these)
+                        if (lowercaseFileName.contains("summon_marker") && templateText.contains(
+                                "spawnMarkerEntriesJson")) {
+                            String testRender = applyPlaceholders(templateText, modelIndex, 0);
+                            if (testRender.contains("\"NPCs\": []") || testRender.contains("\"NPCs\":[]")) {
+                                LOGGER.atWarning().log("[AssetGen] Skipping spawn marker template with empty NPCs: %s",
+                                                       fileName
+                                );
+                                continue;
+                            }
                         }
 
                         String baseTemplateId = TemplateNameGenerator.getBaseTemplateNameFromPath(fileName);

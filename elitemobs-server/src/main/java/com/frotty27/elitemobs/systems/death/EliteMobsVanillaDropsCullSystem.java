@@ -1,7 +1,5 @@
 package com.frotty27.elitemobs.systems.death;
 
-import java.util.Locale;
-
 import com.frotty27.elitemobs.config.EliteMobsConfig;
 import com.frotty27.elitemobs.logs.EliteMobsLogLevel;
 import com.frotty27.elitemobs.logs.EliteMobsLogger;
@@ -15,6 +13,8 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.modules.entity.item.ItemComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import org.jspecify.annotations.NonNull;
+
+import java.util.Locale;
 
 public final class EliteMobsVanillaDropsCullSystem extends EntityTickingSystem<EntityStore> {
 
@@ -45,13 +45,10 @@ public final class EliteMobsVanillaDropsCullSystem extends EntityTickingSystem<E
             @NonNull Store<EntityStore> entityStore,
             @NonNull CommandBuffer<EntityStore> commandBuffer
     ) {
-        cullHandler.handle(entityIndex, archetypeChunk, entityStore, commandBuffer);
+        cullHandler.handle(entityIndex, archetypeChunk, commandBuffer);
     }
 
-    void processTick(
-            int entityIndex,
-            @NonNull ArchetypeChunk<EntityStore> archetypeChunk,
-            @NonNull Store<EntityStore> entityStore,
+    void processTick(int entityIndex, @NonNull ArchetypeChunk<EntityStore> archetypeChunk,
             @NonNull CommandBuffer<EntityStore> commandBuffer
     ) {
         Ref<EntityStore> itemEntityRef = archetypeChunk.getReferenceTo(entityIndex);

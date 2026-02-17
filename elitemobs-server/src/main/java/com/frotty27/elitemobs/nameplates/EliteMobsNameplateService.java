@@ -1,9 +1,5 @@
 package com.frotty27.elitemobs.nameplates;
 
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-
 import com.frotty27.elitemobs.config.EliteMobsConfig;
 import com.frotty27.nameplatebuilder.api.NameplateAPI;
 import com.frotty27.nameplatebuilder.api.NameplateData;
@@ -14,6 +10,10 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 import static com.frotty27.elitemobs.utils.ClampingHelpers.clampTierIndex;
 
@@ -134,30 +134,6 @@ public final class EliteMobsNameplateService {
         };
     }
 
-    
-    public String buildNameplateText(EliteMobsConfig config, String roleName, int clampedTierIndex) {
-        if (config == null || !config.nameplatesConfig.nameplatesEnabled) return "";
-        if (!passesRoleFilters(config, roleName)) return "";
-        if (!areNameplatesEnabledForTier(config, clampedTierIndex)) return "";
-
-        String nameplatePrefix = getNameplatePrefixForTier(config, clampedTierIndex);
-
-        EliteMobsConfig.NameplateMode nameplateMode =
-                (config.nameplatesConfig.nameplateMode != null) ? config.nameplatesConfig.nameplateMode : EliteMobsConfig.NameplateMode.RANKED_ROLE;
-
-        String nameplateBody = switch (nameplateMode) {
-            case SIMPLE -> joinNonBlank(resolveTierPrefixForRole(config, roleName, clampedTierIndex),
-                                        resolveRoleWithoutFamily(roleName)
-            );
-            case RANKED_ROLE -> joinNonBlank(resolveTierPrefixForRole(config, roleName, clampedTierIndex),
-                                             resolveDisplayRoleName(roleName)
-            );
-        };
-
-        return joinNonBlank(nameplatePrefix, nameplateBody);
-    }
-
-    
     private static boolean areNameplatesEnabledForTier(EliteMobsConfig config, int clampedTierIndex) {
         if (config.nameplatesConfig.nameplatesEnabledPerTier == null) return true;
         if (config.nameplatesConfig.nameplatesEnabledPerTier.length <= clampedTierIndex) return true;
@@ -308,7 +284,7 @@ public final class EliteMobsNameplateService {
         return safe(tierPrefixes.get(clampedTierIndex));
     }
 
-    static String classifyFamily(String roleName) {
+    private static String classifyFamily(String roleName) {
         if (roleName == null) return DEFAULT_FAMILY_KEY;
         String roleNameLowercase = roleName.toLowerCase(Locale.ROOT);
 

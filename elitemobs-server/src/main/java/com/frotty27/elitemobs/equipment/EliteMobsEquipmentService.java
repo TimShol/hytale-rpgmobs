@@ -1,7 +1,5 @@
 package com.frotty27.elitemobs.equipment;
 
-import java.util.*;
-
 import com.frotty27.elitemobs.config.EliteMobsConfig;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.inventory.Inventory;
@@ -9,6 +7,8 @@ import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import com.hypixel.hytale.server.npc.util.InventoryHelper;
+
+import java.util.*;
 
 import static com.frotty27.elitemobs.utils.ClampingHelpers.*;
 import static com.frotty27.elitemobs.utils.Constants.*;
@@ -473,18 +473,5 @@ public final class EliteMobsEquipmentService {
         }
 
         return DEFAULT_RARITY;
-    }
-
-    public static String getWeaponIdInHand(NPCEntity npcEntity) {
-        if (npcEntity == null) return null;
-
-        Inventory inventory = npcEntity.getInventory();
-        if (inventory == null) return null;
-
-        ItemStack itemInHand = inventory.getItemInHand();
-        if (itemInHand == null || itemInHand.isEmpty()) return null;
-
-        String itemId = itemInHand.getItemId();
-        return itemId.isBlank() ? null : itemId;
     }
 }

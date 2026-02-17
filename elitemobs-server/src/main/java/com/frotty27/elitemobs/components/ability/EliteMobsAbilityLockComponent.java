@@ -21,7 +21,6 @@ public final class EliteMobsAbilityLockComponent implements Component<EntityStor
     public EliteMobsAbilityLockComponent() {
         this.activeAbilityId = null;
         this.chainStartPending = false;
-        this.chainStartedAtTick = Long.MIN_VALUE;
     }
 
     @Override
@@ -57,9 +56,5 @@ public final class EliteMobsAbilityLockComponent implements Component<EntityStor
     public void markChainStarted(long currentTick) {
         this.chainStartPending = false;
         this.chainStartedAtTick = currentTick;
-    }
-
-    public void clearChainStartPending() {
-        this.chainStartPending = false;
     }
 }

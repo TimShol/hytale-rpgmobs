@@ -18,10 +18,12 @@ public final class EliteMobsConfig {
 
     private static final List<String> DENY_ABILITY_CHARGE_LEAP_LIST = List.of("Eye_Void",
                                                                               "Crawler_Void",
-                                                                              "Skeleton_Burnt_Praetorian"
+                                                                              "Skeleton_Burnt_Praetorian",
+                                                                              "_Gunner"
+
     );
 
-    private static final List<String> UNDEAD_ROLE_NAME_CONTAINS = List.of("skeleton_", "zombie_", "wraith");
+    private static final List<String> UNDEAD_ROLE_NAME_CONTAINS = List.of("skeleton", "zombie", "wraith");
     private static final List<String> DAMAGE_MELEE_ONLY_NOT_CONTAINS = List.of("shortbow",
                                                                                "crossbow",
                                                                                "staff",
@@ -67,7 +69,6 @@ public final class EliteMobsConfig {
     public final EffectsConfig effectsConfig = new EffectsConfig();
     public final ConsumablesConfig consumablesConfig = new ConsumablesConfig();
     public final DebugConfig debugConfig = new DebugConfig();
-    public final CompatConfig compatConfig = new CompatConfig();
     public final ReconcileConfig reconcileConfig = new ReconcileConfig();
 
     public enum ProgressionStyle {
@@ -545,13 +546,9 @@ public final class EliteMobsConfig {
         @Cfg(group = "Nameplates", file = "visuals.yml", comment = "Nameplate style: RANKED_ROLE (recommended) or SIMPLE.")
         public NameplateMode nameplateMode = NameplateMode.RANKED_ROLE;
 
-        @Cfg(group = "Nameplates", file = "visuals.yml", comment = "Tier-based name prefixes per family (Zombie, Skeleton, etc.). Each list must have 5 values.")
-        public Map<String, List<String>> defaultedTierPrefixesByFamily = defaultTierPrefixesByFamily();
-
         @FixedArraySize(TIERS_AMOUNT)
-        @Default
-        @Cfg(group = "Nameplates", file = "visuals.yml", comment = "Visual indicators for each tier.")
-        public String[] nameplatePrefixPerTier = {"[•]", "[• •]", "[• • •]", "[• • • •]", "[• • • • •]"};
+        @Cfg(group = "Nameplates", file = "visuals.yml", comment = "Enable nameplates for specific tiers.")
+        public boolean[] nameplatesEnabledPerTier = {true, true, true, true, true};
 
         @Cfg(group = "Nameplates", file = "visuals.yml", comment = "Include specific role names (case-insensitive). Empty allows all.")
         public List<String> nameplateMustContainRoles = List.of();
@@ -560,8 +557,12 @@ public final class EliteMobsConfig {
         public List<String> nameplateMustNotContainRoles = List.of();
 
         @FixedArraySize(TIERS_AMOUNT)
-        @Cfg(group = "Nameplates", file = "visuals.yml", comment = "Enable nameplates for specific tiers.")
-        public boolean[] nameplatesEnabledPerTier = {true, true, true, true, true};
+        @Default
+        @Cfg(group = "Nameplates", file = "visuals.yml", comment = "Visual indicators for each tier.")
+        public String[] nameplatePrefixPerTier = {"[•]", "[• •]", "[• • •]", "[• • • •]", "[• • • • •]"};
+
+        @Cfg(group = "Nameplates", file = "visuals.yml", comment = "Tier-based name prefixes per family (Zombie, Skeleton, etc.). Each list must have 5 values.")
+        public Map<String, List<String>> defaultedTierPrefixesByFamily = defaultTierPrefixesByFamily();
     }
 
     public static final class ReconcileConfig {
@@ -581,43 +582,43 @@ public final class EliteMobsConfig {
 
     public static final class SpawningConfig {
         @Default
-        @Cfg(group = "Spawning", file = "core.yml", comment = "Progression system: ENVIRONMENT (Zone-based), DISTANCE_FROM_SPAWN (Linear scaling), or NONE (Random).")
+        @Cfg(group = "Spawning", file = "spawning.yml", comment = "Progression system: ENVIRONMENT (Zone-based), DISTANCE_FROM_SPAWN (Linear scaling), or NONE (Random).")
         public ProgressionStyle progressionStyle = ProgressionStyle.ENVIRONMENT;
 
         @Default
-        @Cfg(group = "Spawning", file = "core.yml", comment = "Blocks required per tier transition (e.g. 1000m = Tier 1, 2000m = Tier 2).")
-        public double distancePerTier = 1000.0;
-
-        @Default
-        @Cfg(group = "Spawning", file = "core.yml", comment = "Block interval for applying bonus stats (e.g. every 100 blocks).")
-        public double distanceBonusInterval = 100.0;
-
-        @Default
-        @Cfg(group = "Spawning", file = "core.yml", comment = "Health multiplier bonus added per interval (0.01 = +1% health every 100m).")
-        public float distanceHealthBonusPerInterval = 0.01f;
-
-        @Default
-        @Cfg(group = "Spawning", file = "core.yml", comment = "Damage multiplier bonus added per interval (0.005 = +0.5% damage every 100m).")
-        public float distanceDamageBonusPerInterval = 0.005f;
-
-        @Default
-        @Cfg(group = "Spawning", file = "core.yml", comment = "Max bonus health multiplier added by distance progression (0.5 = +50% base health max).")
-        public float distanceHealthBonusCap = 0.5f;
-
-        @Default
-        @Cfg(group = "Spawning", file = "core.yml", comment = "Max bonus damage multiplier added by distance progression (0.5 = +50% base damage max).")
-        public float distanceDamageBonusCap = 0.5f;
-
-        @Default
-        @Cfg(group = "Spawning", file = "core.yml", comment = "Used if style is ENVIRONMENT. Enable zone-specific tier probabilities.")
+        @Cfg(group = "Spawning", file = "spawning.yml", comment = "Used if style is ENVIRONMENT. Enable zone-specific tier probabilities.")
         public boolean enableEnvironmentTierSpawns = true;
 
         @Default
         @FixedArraySize(TIERS_AMOUNT)
-        @Cfg(group = "Spawning", file = "core.yml", comment = "Global tier weights used for NONE style or as fallback. Higher = more common.")
+        @Cfg(group = "Spawning", file = "spawning.yml", comment = "Global tier weights used for NONE style or as fallback. Higher = more common.")
         public double[] spawnChancePerTier = {0.46, 0.28, 0.16, 0.08, 0.04};
 
-        @Cfg(group = "Spawning", file = "core.yml", comment = "Zone-specific rules. Key is environment id (e.g. Env_Zone1_Forests).")
+        @Default
+        @Cfg(group = "Spawning", file = "spawning.yml", comment = "Blocks required per tier transition (e.g. 1000m = Tier 1, 2000m = Tier 2).")
+        public double distancePerTier = 1000.0;
+
+        @Default
+        @Cfg(group = "Spawning", file = "spawning.yml", comment = "Block interval for applying bonus stats (e.g. every 100 blocks).")
+        public double distanceBonusInterval = 100.0;
+
+        @Default
+        @Cfg(group = "Spawning", file = "spawning.yml", comment = "Health multiplier bonus added per interval (0.01 = +1% health every 100m).")
+        public float distanceHealthBonusPerInterval = 0.01f;
+
+        @Default
+        @Cfg(group = "Spawning", file = "spawning.yml", comment = "Damage multiplier bonus added per interval (0.005 = +0.5% damage every 100m).")
+        public float distanceDamageBonusPerInterval = 0.005f;
+
+        @Default
+        @Cfg(group = "Spawning", file = "spawning.yml", comment = "Max bonus health multiplier added by distance progression (0.5 = +50% base health max).")
+        public float distanceHealthBonusCap = 0.5f;
+
+        @Default
+        @Cfg(group = "Spawning", file = "spawning.yml", comment = "Max bonus damage multiplier added by distance progression (0.5 = +50% base damage max).")
+        public float distanceDamageBonusCap = 0.5f;
+
+        @Cfg(group = "Spawning", file = "spawning.yml", comment = "Zone-specific rules. Key is environment id (e.g. Env_Zone1_Forests).")
         public Map<String, EnvironmentTierRule> defaultEnvironmentTierSpawns = defaultEnvironmentTierSpawns();
     }
 
@@ -632,23 +633,33 @@ public final class EliteMobsConfig {
 
     public static final class HealthConfig {
         @Default
-        @FixedArraySize(TIERS_AMOUNT)
-        @Cfg(group = "Health", file = "stats.yml", comment = "Base health multiplier per tier.")
-        public float[] healthMultiplierPerTier = {0.1f, 0.5f, 1.1f, 1.8f, 2.6f};
-
-        @Default
         @Cfg(group = "Health", file = "stats.yml", comment = "Enable or disable health scaling for EliteMobs.")
         public boolean enableHealthScaling = true;
+
+        @Default
+        @FixedArraySize(TIERS_AMOUNT)
+        @Cfg(group = "Health", file = "stats.yml", comment = "Base health multiplier per tier.")
+        public float[] healthMultiplierPerTier = {0.3f, 0.6f, 1.2f, 1.8f, 2.6f};
     }
 
     public static final class AssetGeneratorConfig {
         @Default
         @FixedArraySize(TIERS_AMOUNT)
-        @Cfg(group = "AssetGenerator", file = "visuals.yml", comment = "Tier suffixes for Asset Generator.")
+        @YamlIgnore
         public String[] tierSuffixes = {"Tier_1", "Tier_2", "Tier_3", "Tier_4", "Tier_5"};
     }
 
     public static final class GearConfig {
+        @Default
+        @FixedArraySize(TIERS_AMOUNT)
+        @Cfg(group = "Gear", file = "gear.yml", comment = "Number of armor slots to fill per tier (0-4).")
+        public int[] armorPiecesToEquipPerTier = {0, 1, 2, 3, 4};
+
+        @Default
+        @FixedArraySize(TIERS_AMOUNT)
+        @Cfg(group = "Gear", file = "gear.yml", comment = "Probability of equipping a utility item (shield/torch) per tier.")
+        public double[] shieldUtilityChancePerTier = {0.0, 0.0, 0.20, 0.40, 0.60};
+
         @Min(0.001)
         @Max(1.0)
         @Default
@@ -689,16 +700,6 @@ public final class EliteMobsConfig {
 
         @Cfg(group = "Gear", file = "gear.yml", comment = "Valid armor materials for Elite generation.")
         public List<String> defaultArmorMaterials = defaultArmorMaterials();
-
-        @Default
-        @FixedArraySize(TIERS_AMOUNT)
-        @Cfg(group = "Gear", file = "gear.yml", comment = "Number of armor slots to fill per tier (0-4).")
-        public int[] armorPiecesToEquipPerTier = {0, 1, 2, 3, 4};
-
-        @Default
-        @FixedArraySize(TIERS_AMOUNT)
-        @Cfg(group = "Gear", file = "gear.yml", comment = "Probability of equipping a utility item (shield/torch) per tier.")
-        public double[] shieldUtilityChancePerTier = {0.0, 0.0, 0.20, 0.40, 0.60};
     }
 
     private static Map<String, String> defaultWeaponRarityRules() {
@@ -1091,6 +1092,11 @@ public final class EliteMobsConfig {
     }
 
     public static final class LootConfig {
+        @Default
+        @FixedArraySize(TIERS_AMOUNT)
+        @Cfg(group = "Loot", file = "loot.yml", comment = "Multiplies vanilla loot amounts per tier.")
+        public int[] vanillaDroplistMultiplierPerTier = {0, 0, 2, 4, 6};
+
         @Min(0.0)
         @Max(1.0)
         @Default
@@ -1109,24 +1115,19 @@ public final class EliteMobsConfig {
         @Cfg(group = "Loot", file = "loot.yml", comment = "Chance for an Elite to drop its off-hand item (shields, torches, etc.).")
         public double dropOffhandItemChance = 0.05;
 
-        @Default
-        @FixedArraySize(TIERS_AMOUNT)
-        @Cfg(group = "Loot", file = "loot.yml", comment = "Multiplies vanilla loot amounts per tier.")
-        public int[] vanillaDroplistMultiplierPerTier = {0, 0, 2, 4, 6};
-
         @Cfg(group = "Loot", file = "loot.yml", comment = "Custom loot tables for specific tiers.")
         public List<ExtraDropRule> defaultExtraDrops = defaultExtraDrops();
     }
 
     public static final class DamageConfig {
         @Default
+        @Cfg(group = "Damage", file = "stats.yml", comment = "Enable or disable damage scaling.")
+        public boolean enableMobDamageMultiplier = true;
+
+        @Default
         @FixedArraySize(TIERS_AMOUNT)
         @Cfg(group = "Damage", file = "stats.yml", comment = "Base damage multiplier per tier.")
         public float[] mobDamageMultiplierPerTier = {0.6f, 1.1f, 1.6f, 2.1f, 2.6f};
-
-        @Default
-        @Cfg(group = "Damage", file = "stats.yml", comment = "Enable or disable damage scaling.")
-        public boolean enableMobDamageMultiplier = true;
 
         @Default
         @Min(0.0)
@@ -1279,18 +1280,12 @@ public final class EliteMobsConfig {
     public static final class DebugConfig {
         @Default
         @Cfg(group = "Debug", file = "core.yml", comment = "Enables debug mode.")
-        public boolean isDebugModeEnabled = true;
+        public boolean isDebugModeEnabled = false;
 
         @Min(1.0)
         @Default
         @Cfg(group = "Debug", file = "core.yml", comment = "Debug interval for scanning NPC's that match the MobRules in seconds.")
         public int debugMobRuleScanIntervalSeconds = 5;
-    }
-
-    public static final class CompatConfig {
-        @Default
-        @Cfg(group = "Compat", file = "core.yml", comment = "Show compatibility messages to players when they join.")
-        public boolean showCompatJoinMessages = true;
     }
 
     public static final class AbilitiesConfig {
@@ -1307,6 +1302,7 @@ public final class EliteMobsConfig {
 
         chargeLeap.isEnabled = true;
         chargeLeap.isEnabledPerTier = new boolean[]{false, false, false, true, true};
+        chargeLeap.chancePerTier = new float[]{0f, 0f, 0f, 0.50f, 1.00f};
         chargeLeap.cooldownSecondsPerTier = new float[]{0f, 0f, 0f, 16f, 20f};
 
         chargeLeap.minRange = 9.0f;
@@ -1367,9 +1363,9 @@ public final class EliteMobsConfig {
 
         SummonAbilityConfig undeadSummon = new SummonAbilityConfig();
         undeadSummon.isEnabled = true;
-        undeadSummon.isEnabledPerTier = new boolean[]{false, false, false, false, true};
-        undeadSummon.chancePerTier = new float[]{0f, 0f, 0f, 1.00f, 1.00f};
-        undeadSummon.cooldownSecondsPerTier = new float[]{0f, 0f, 0f, 15f, 15f};
+        undeadSummon.isEnabledPerTier = new boolean[]{false, false, false, true, true};
+        undeadSummon.chancePerTier = new float[]{0f, 0f, 0f, 0.50f, 1.00f};
+        undeadSummon.cooldownSecondsPerTier = new float[]{0f, 0f, 0f, 25f, 25f};
         undeadSummon.gate.roleMustContain = UNDEAD_ROLE_NAME_CONTAINS;
 
         undeadSummon.templates.add(AbilityConfig.TEMPLATE_ROOT_INTERACTION,
@@ -1431,9 +1427,6 @@ public final class EliteMobsConfig {
         public static final String TEMPLATE_ENTRY_INTERACTION_CANCEL = "entryInteractionCancel";
         public static final String TEMPLATE_EFFECT_INSTANT_HEAL = "effectInstantHeal";
 
-        @FixedArraySize(value = TIERS_AMOUNT)
-        public float[] applyForcePerTier = {0f, 0f, 0f, 0f, 0f};
-
         @Cfg(group = "Abilities", file = "abilities.yml", comment = "Minimum health percent at which the heal can trigger (rolled once per elite on spawn).")
         public float minHealthTriggerPercent = 0.1f;
         @Cfg(group = "Abilities", file = "abilities.yml", comment = "Maximum health percent at which the heal can trigger (rolled once per elite on spawn).")
@@ -1450,25 +1443,36 @@ public final class EliteMobsConfig {
 
         @Cfg(group = "Abilities", file = "abilities.yml", comment = "Item id shown in NPC hand while drinking.")
         public String npcDrinkItemId = "Potion_Health_Greater";
+
+        @FixedArraySize(value = TIERS_AMOUNT)
+        public float[] applyForcePerTier = {0f, 0f, 0f, 0f, 0f};
     }
 
     public static final class SummonAbilityConfig extends AbilityConfig {
         public static final String TEMPLATE_SUMMON_MARKER = "summonMarker";
 
-        @Cfg(group = "Abilities", file = "abilities.yml", comment = "Role identifiers used to pick which archers get summoned. First match (role name contains this text) wins. 'default' is used if none match.")
+        @Cfg(group = "Abilities", file = "abilities.yml", comment = "Maximum number of active summoned minions per summoner (0 disables summoning). Clamped to 0..50.")
+        public int maxAlive = DEFAULT_SUMMON_MAX_ALIVE;
+        @Cfg(group = "Abilities", file = "abilities.yml", comment = "Role identifiers used to pick which minions get summoned. First match (role name contains this text) wins. 'default' is used if none match.")
         public List<String> roleIdentifiers = new ArrayList<>(List.of("Skeleton_Frost",
                                                                       "Skeleton_Sand",
                                                                       "Skeleton_Burnt",
-                                                                      "Skeleton"
+                                                                      "Skeleton_Incandescent",
+                                                                      "Skeleton_Pirate",
+                                                                      "Skeleton",
+                                                                      "Zombie_Burnt",
+                                                                      "Zombie_Frost",
+                                                                      "Zombie_Sand",
+                                                                      "Zombie"
         ));
-        @Cfg(group = "Abilities", file = "abilities.yml", comment = "Maximum number of active summoned minions per summoner (0 disables summoning). Clamped to 0..50.")
-        public int maxAlive = DEFAULT_SUMMON_MAX_ALIVE;
         @Cfg(group = "Abilities", file = "abilities.yml", comment = "Weight for role-matched skeleton archers in the summon pool.")
         public double skeletonArcherWeight = 100;
-        @Cfg(group = "Abilities", file = "abilities.yml", comment = "Weight for zombies in the summon pool (low chance).")
-        public double zombieWeight = 8;
-        @Cfg(group = "Abilities", file = "abilities.yml", comment = "Weight for wraiths in the summon pool (very low chance).")
-        public double wraithWeight = 3;
+        @Cfg(group = "Abilities", file = "abilities.yml", comment = "Weight for extra zombies added to all pools (0 = disabled, only zombie summoners get zombies from primary entries).")
+        public double zombieWeight = 0;
+        @Cfg(group = "Abilities", file = "abilities.yml", comment = "Weight for wraiths in the skeleton summon pool (~20% chance).")
+        public double wraithWeight = 25;
+        @Cfg(group = "Abilities", file = "abilities.yml", comment = "Weight for aberrant zombies in the zombie summon pool (~20% chance).")
+        public double aberrantWeight = 25;
 
         @Cfg(group = "Abilities", file = "abilities.yml", comment = "Optional explicit spawn marker entries (advanced). If empty, EliteMobs builds this automatically from mob rules.")
         public List<SummonMarkerEntry> spawnMarkerEntries = new ArrayList<>();
@@ -1512,7 +1516,7 @@ public final class EliteMobsConfig {
     }
 
     public static final class MobsConfig {
-        @Cfg(group = "Spawning", file = "mobs.yml", comment = "Mob rules: decide what to do if our scan found a NPC Entity with this id. If the id of the mob is not on the list, it will get the fist (it won't be transformed into an EliteMob. First mobRule match wins btw.")
+        @Cfg(group = "MobRules", file = "mobrules.yml", comment = "Mob rules: decide what to do if our scan found a NPC Entity with this id. If the id of the mob is not on the list, it will get the fist (it won't be transformed into an EliteMob. First mobRule match wins btw)")
         public Map<String, MobRule> defaultMobRules = defaultMobRules();
     }
 
@@ -3739,6 +3743,7 @@ public final class EliteMobsConfig {
         LinkedHashSet<String> allNpcIds = new LinkedHashSet<>();
         LinkedHashSet<String> zombieNpcIds = new LinkedHashSet<>();
         LinkedHashSet<String> wraithNpcIds = new LinkedHashSet<>();
+        LinkedHashSet<String> aberrantNpcIds = new LinkedHashSet<>();
 
         for (Map.Entry<String, MobRule> entry : mobsConfig.defaultMobRules.entrySet()) {
             if (entry == null) continue;
@@ -3764,7 +3769,11 @@ public final class EliteMobsConfig {
             for (String id : ids) {
                 String lower = id.toLowerCase(Locale.ROOT);
                 allNpcIds.add(id);
-                if (lower.contains("zombie")) zombieNpcIds.add(id);
+                if (lower.contains("aberrant")) {
+                    aberrantNpcIds.add(id);
+                } else if (lower.contains("zombie")) {
+                    zombieNpcIds.add(id);
+                }
                 if (lower.contains("wraith")) wraithNpcIds.add(id);
             }
 
@@ -3832,6 +3841,8 @@ public final class EliteMobsConfig {
 
         summonConfig.spawnMarkerEntriesByRole = new LinkedHashMap<>();
 
+        List<String> moreSpecificIdentifiers = new ArrayList<>();
+
         for (String identifier : roleIdentifiers) {
             String normalizedIdentifier = normalizeRoleIdentifier(identifier);
             if (normalizedIdentifier.isBlank()) continue;
@@ -3844,18 +3855,22 @@ public final class EliteMobsConfig {
             } else {
                 String identifierLower = identifier.toLowerCase(Locale.ROOT);
                 for (String id : allNpcIds) {
-                    if (id.toLowerCase(Locale.ROOT).contains(identifierLower)) {
-                        roleNpcIds.add(id);
-                    }
+                    String idLower = id.toLowerCase(Locale.ROOT);
+                    if (!idLower.contains(identifierLower)) continue;
+                    if (matchesMoreSpecificIdentifier(idLower, identifierLower, moreSpecificIdentifiers)) continue;
+                    roleNpcIds.add(id);
                 }
                 for (String id : bowNpcIds) {
-                    if (id.toLowerCase(Locale.ROOT).contains(identifierLower)) {
-                        roleBowIds.add(id);
-                    }
+                    String idLower = id.toLowerCase(Locale.ROOT);
+                    if (!idLower.contains(identifierLower)) continue;
+                    if (matchesMoreSpecificIdentifier(idLower, identifierLower, moreSpecificIdentifiers)) continue;
+                    roleBowIds.add(id);
                 }
                 if (roleNpcIds.isEmpty()) roleNpcIds.addAll(allNpcIds);
                 if (roleBowIds.isEmpty()) roleBowIds.addAll(bowNpcIds);
             }
+
+            moreSpecificIdentifiers.add(identifier.toLowerCase(Locale.ROOT));
 
             ArrayList<SummonMarkerEntry> entries = new ArrayList<>();
             double skeletonWeight = Math.max(0.0, summonConfig.skeletonArcherWeight);
@@ -3903,8 +3918,33 @@ public final class EliteMobsConfig {
                 }
             }
 
+            double aberrantWeight = Math.max(0.0, summonConfig.aberrantWeight);
+            if (!aberrantNpcIds.isEmpty() && aberrantWeight > 0.0 && identifier.toLowerCase(Locale.ROOT).contains(
+                    "zombie")) {
+                for (String npcId : aberrantNpcIds) {
+                    SummonMarkerEntry markerEntry = new SummonMarkerEntry();
+                    markerEntry.Name = npcId;
+                    markerEntry.Weight = aberrantWeight;
+                    markerEntry.Flock = "EliteMobs_Summon_3_7";
+                    markerEntry.SpawnAfterGameTime = "PT0S";
+                    entries.add(markerEntry);
+                }
+            }
+
             summonConfig.spawnMarkerEntriesByRole.put(normalizedIdentifier, entries);
         }
+    }
+
+    private static boolean matchesMoreSpecificIdentifier(String npcIdLower, String currentIdentifierLower,
+                                                         List<String> moreSpecificIdentifiers) {
+        for (String specific : moreSpecificIdentifiers) {
+            if (specific.equals(currentIdentifierLower)) continue;
+            if (specific.length() > currentIdentifierLower.length() && specific.contains(currentIdentifierLower) && npcIdLower.contains(
+                    specific)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public void upgradeSummonMarkerEntriesToVariantIds() {

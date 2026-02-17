@@ -1,14 +1,7 @@
 package com.frotty27.elitemobs.features;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import com.frotty27.elitemobs.assets.TemplateNameGenerator;
-import com.frotty27.elitemobs.config.EliteMobsConfig;
 import com.frotty27.elitemobs.config.EliteMobsConfig.AbilityConfig;
 import com.frotty27.elitemobs.config.EliteMobsConfig.SummonAbilityConfig;
-import com.frotty27.elitemobs.config.EliteMobsConfig.SummonMarkerEntry;
 import com.frotty27.elitemobs.utils.AbilityHelpers;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.ComponentType;
@@ -31,32 +24,6 @@ public final class EliteMobsAbilityFeatureHelpers {
     private EliteMobsAbilityFeatureHelpers() {
     }
 
-    public static Set<String> getSummonRoleNames(SummonAbilityConfig config, String normalizedIdentifier) {
-        if (config == null) return Set.of();
-        List<SummonMarkerEntry> entries = null;
-        if (config.spawnMarkerEntriesByRole != null && normalizedIdentifier != null) {
-            entries = config.spawnMarkerEntriesByRole.get(normalizedIdentifier);
-        }
-        if ((entries == null || entries.isEmpty()) && config.spawnMarkerEntriesByRole != null) {
-            entries = config.spawnMarkerEntriesByRole.get("default");
-            if (entries == null || entries.isEmpty()) {
-                entries = config.spawnMarkerEntriesByRole.get("Default");
-            }
-        }
-        if (entries == null || entries.isEmpty()) {
-            entries = config.spawnMarkerEntries;
-        }
-        if (entries == null || entries.isEmpty()) return Set.of();
-
-        HashSet<String> roleNames = new HashSet<>();
-        for (SummonMarkerEntry entry : entries) {
-            if (entry == null || entry.Name == null) continue;
-            String name = entry.Name.trim();
-            if (!name.isEmpty()) roleNames.add(name);
-        }
-        return roleNames;
-    }
-
     public static String resolveSummonRoleIdentifier(AbilityConfig summonConfig, String roleName) {
         if (!(summonConfig instanceof SummonAbilityConfig s)) return DEFAULT_IDENTIFIER;
         if (roleName == null || roleName.isBlank()) return DEFAULT_IDENTIFIER;
@@ -70,13 +37,6 @@ public final class EliteMobsAbilityFeatureHelpers {
             }
         }
         return DEFAULT_IDENTIFIER;
-    }
-
-    public static String buildRoleSpecificSummonRootId(EliteMobsConfig config, String normalizedRoleIdentifier,
-                                                int tierIndex) {
-        if (config == null || normalizedRoleIdentifier == null || normalizedRoleIdentifier.isBlank()) return null;
-        String baseId = "EliteMobs_Ability_UndeadSummon_RootInteraction_" + normalizedRoleIdentifier;
-        return TemplateNameGenerator.appendTierSuffix(baseId, config, tierIndex);
     }
 
     public static boolean tryStartInteraction(Ref<EntityStore> npcRef, Store<EntityStore> entityStore,
@@ -97,7 +57,7 @@ public final class EliteMobsAbilityFeatureHelpers {
         }
 
         var chains = interactionManager.getChains();
-        if (chains != null && !chains.isEmpty()) {
+        if (!chains.isEmpty()) {
             for (var entry : chains.entrySet()) {
                 InteractionChain chain = entry.getValue();
                 if (chain != null) {
@@ -110,7 +70,7 @@ public final class EliteMobsAbilityFeatureHelpers {
             LOGGER.atInfo().log("[tryStartInteraction] No active chains before starting '%s'", rootInteractionId);
         }
 
-        if (chains != null && !chains.isEmpty()) {
+        if (!chains.isEmpty()) {
             for (InteractionChain chain : chains.values()) {
                 if (chain != null) {
                     LOGGER.atInfo().log("[tryStartInteraction] Pre-cancelling %s chain before starting '%s'",

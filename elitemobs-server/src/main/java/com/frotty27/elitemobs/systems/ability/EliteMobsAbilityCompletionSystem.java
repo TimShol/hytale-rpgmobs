@@ -16,7 +16,6 @@ import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.protocol.InteractionType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import org.jspecify.annotations.NonNull;
 
 import static com.frotty27.elitemobs.utils.ClampingHelpers.clampTierIndex;
@@ -34,9 +33,7 @@ public final class EliteMobsAbilityCompletionSystem extends EntityTickingSystem<
 
     @Override
     public Query<EntityStore> getQuery() {
-        return Query.and(
-                plugin.getEliteMobsComponent(),
-                plugin.getAbilityLockComponent()
+        return Query.and(plugin.getEliteMobsComponentType(), plugin.getAbilityLockComponentType()
         );
     }
 
@@ -44,7 +41,7 @@ public final class EliteMobsAbilityCompletionSystem extends EntityTickingSystem<
     public void tick(float deltaTime, int entityIndex, @NonNull ArchetypeChunk<EntityStore> chunk,
                      @NonNull Store<EntityStore> store, @NonNull CommandBuffer<EntityStore> commandBuffer) {
 
-        EliteMobsAbilityLockComponent lock = chunk.getComponent(entityIndex, plugin.getAbilityLockComponent());
+        EliteMobsAbilityLockComponent lock = chunk.getComponent(entityIndex, plugin.getAbilityLockComponentType());
         if (lock == null || !lock.isLocked()) return;
 
         long currentTick = plugin.getTickClock().getTick();
@@ -64,7 +61,7 @@ public final class EliteMobsAbilityCompletionSystem extends EntityTickingSystem<
 
         String completedAbilityId = lock.activeAbilityId;
 
-        EliteMobsTierComponent tier = store.getComponent(entityRef, plugin.getEliteMobsComponent());
+        EliteMobsTierComponent tier = store.getComponent(entityRef, plugin.getEliteMobsComponentType());
         int tierIndex = (tier != null) ? clampTierIndex(tier.tierIndex) : 0;
 
         LOGGER.atInfo().log("[AbilityCompletion] DETECTED: ability=%s tier=%d pending=%b startedAt=%d currentTick=%d chainRunning=%b",

@@ -1,4 +1,4 @@
-package com.frotty27.elitemobs.api.event;
+package com.frotty27.elitemobs.api.events;
 
 /**
  * Event fired during a reconciliation pass.

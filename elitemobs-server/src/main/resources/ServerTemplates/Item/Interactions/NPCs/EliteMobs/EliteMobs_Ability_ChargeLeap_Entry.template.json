@@ -136,7 +136,8 @@
           "DisableAll": true
         },
         "ItemPlayerAnimationsId": "Mace",
-        "ItemAnimationId": "SwingDownCharged"
+    "ItemAnimationId": "SwingDownCharged",
+    "ClearAnimationOnFinish": true
       }
     }
   ]

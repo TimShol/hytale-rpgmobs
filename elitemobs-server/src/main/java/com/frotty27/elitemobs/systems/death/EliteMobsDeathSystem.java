@@ -1,5 +1,7 @@
 package com.frotty27.elitemobs.systems.death;
 
+import com.frotty27.elitemobs.api.events.EliteMobDeathEvent;
+import com.frotty27.elitemobs.api.events.EliteMobDropsEvent;
 import com.frotty27.elitemobs.components.EliteMobsTierComponent;
 import com.frotty27.elitemobs.components.combat.EliteMobsCombatTrackingComponent;
 import com.frotty27.elitemobs.components.summon.EliteMobsSummonMinionTrackingComponent;
@@ -9,7 +11,6 @@ import com.frotty27.elitemobs.exceptions.EliteMobsException;
 import com.frotty27.elitemobs.exceptions.EliteMobsSystemException;
 import com.frotty27.elitemobs.plugin.EliteMobsPlugin;
 import com.frotty27.elitemobs.utils.Constants;
-import com.frotty27.elitemobs.utils.StoreHelpers;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
@@ -28,9 +29,12 @@ import com.hypixel.hytale.server.core.modules.entity.damage.DeathSystems;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import org.jspecify.annotations.NonNull;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
+import java.util.UUID;
 
 import static com.frotty27.elitemobs.utils.ClampingHelpers.clampTierIndex;
 import static com.frotty27.elitemobs.utils.Constants.UTILITY_SLOT_INDEX;
@@ -62,11 +66,8 @@ public final class EliteMobsDeathSystem extends DeathSystems.OnDeathSystem {
     }
 
     @Override
-    public void onComponentAdded(
-            Ref<EntityStore> ref,
-            DeathComponent death,
-            Store<EntityStore> store,
-            CommandBuffer<EntityStore> commandBuffer
+    public void onComponentAdded(@NonNull Ref<EntityStore> ref, @NonNull DeathComponent death,
+                                 @NonNull Store<EntityStore> store, @NonNull CommandBuffer<EntityStore> commandBuffer
     ) {
         try {
             processDeath(ref, death, store, commandBuffer);
@@ -86,22 +87,24 @@ public final class EliteMobsDeathSystem extends DeathSystems.OnDeathSystem {
         if (minionDeathHandler.handle(ref, death, store, commandBuffer)) {
             return;
         }
-        
-        dropsHandler.handle(ref, death, store, commandBuffer);
+
+        dropsHandler.handle(ref, death, store);
     }
 
-    void processOnDeath(Ref<EntityStore> ref, DeathComponent death, Store<EntityStore> store, CommandBuffer<EntityStore> commandBuffer) {
+    void processOnDeath(Ref<EntityStore> ref, DeathComponent death, Store<EntityStore> store) {
         EliteMobsConfig cfg = plugin.getConfig();
         if (cfg == null) return;
 
-        NPCEntity npc = store.getComponent(ref, NPCEntity.getComponentType());
+        NPCEntity npc = store.getComponent(ref, Objects.requireNonNull(NPCEntity.getComponentType()));
         if (npc == null) return;
 
-        EliteMobsTierComponent tier = store.getComponent(ref, plugin.getEliteMobsComponent());
+        EliteMobsTierComponent tier = store.getComponent(ref, plugin.getEliteMobsComponentType());
         if (tier == null || tier.tierIndex < 0) return;
 
 
-        EliteMobsSummonMinionTrackingComponent tracking = store.getComponent(ref, plugin.getSummonMinionTrackingComponent());
+        EliteMobsSummonMinionTrackingComponent tracking = store.getComponent(ref,
+                                                                             plugin.getSummonMinionTrackingComponentType()
+        );
         if (tracking != null && tracking.disableDrops) return;
 
         TransformComponent transformComponent = store.getComponent(ref, TransformComponent.getComponentType());
@@ -111,8 +114,16 @@ public final class EliteMobsDeathSystem extends DeathSystems.OnDeathSystem {
         var spawnSystem = plugin.getSpawnSystem();
         if (spawnSystem != null) {
             UUIDComponent uuidComponent = store.getComponent(ref, UUIDComponent.getComponentType());
-            if (uuidComponent != null && uuidComponent.getUuid() != null) {
-                spawnSystem.queueMinionChainDespawn(uuidComponent.getUuid(), store, plugin.getTickClock().getTick());
+            if (uuidComponent != null) {
+                UUID deadSummonerId = uuidComponent.getUuid();
+                long deathTick = plugin.getTickClock().getTick();
+                int aliveCount = tracking != null ? tracking.summonedAliveCount : 0;
+                LOGGER.atInfo().log(
+                        "[DeathSystem] Summoner died, queuing minion chain despawn for summonerId=%s alive=%d",
+                        deadSummonerId,
+                        aliveCount
+                );
+                spawnSystem.queueSummonerDeath(deadSummonerId, deathTick);
             }
         }
 
@@ -128,9 +139,9 @@ public final class EliteMobsDeathSystem extends DeathSystems.OnDeathSystem {
         ObjectArrayList<ItemStack> drops = new ObjectArrayList<>();
         Inventory inv = npc.getInventory();
         if (inv != null) {
-            addWeaponDrop(cfg, tierId, npc, inv, drops);
+            addWeaponDrop(cfg, inv, drops);
             addArmorDrops(cfg, inv, drops);
-            addUtilityDrop(cfg, tierId, inv, drops);
+            addUtilityDrop(cfg, inv, drops);
         }
 
         addExtraDrops(cfg, tierId, drops);
@@ -140,16 +151,18 @@ public final class EliteMobsDeathSystem extends DeathSystems.OnDeathSystem {
         String roleName = npc.getRoleName() != null ? npc.getRoleName() : "";
 
 
-        EliteMobsCombatTrackingComponent combatTracking = store.getComponent(ref, plugin.getCombatTrackingComponent());
+        EliteMobsCombatTrackingComponent combatTracking = store.getComponent(ref,
+                                                                             plugin.getCombatTrackingComponentType()
+        );
         Ref<EntityStore> killerRef = (combatTracking != null) ? combatTracking.getBestTarget() : null;
         if (killerRef != null && !killerRef.isValid()) killerRef = null;
-        plugin.getEventBus().fire(new com.frotty27.elitemobs.api.event.EliteMobDeathEvent(
+        plugin.getEventBus().fire(new EliteMobDeathEvent(
                 ref, tierId, roleName, killerRef, transformComponent.getPosition().clone()));
 
         if (drops.isEmpty()) return;
 
-        
-        var dropsEvent = new com.frotty27.elitemobs.api.event.EliteMobDropsEvent(
+
+        var dropsEvent = new EliteMobDropsEvent(
                 ref, tierId, roleName, drops, pos.clone());
         plugin.getEventBus().fire(dropsEvent);
         if (dropsEvent.isCancelled() || drops.isEmpty()) return;
@@ -165,7 +178,7 @@ public final class EliteMobsDeathSystem extends DeathSystems.OnDeathSystem {
         plugin.getExtraDropsScheduler().enqueueDrops(delayTicks, pos, rot, drops, null);
     }
 
-    private void addWeaponDrop(EliteMobsConfig cfg, int tierId, NPCEntity npc, Inventory inv, List<ItemStack> drops) {
+    private void addWeaponDrop(EliteMobsConfig cfg, Inventory inv, List<ItemStack> drops) {
         double chance = cfg.lootConfig.dropWeaponChance;
         if (random.nextDouble() > chance) return;
         byte slot = inv.getActiveHotbarSlot();
@@ -187,7 +200,7 @@ public final class EliteMobsDeathSystem extends DeathSystems.OnDeathSystem {
         }
     }
 
-    private void addUtilityDrop(EliteMobsConfig cfg, int tierId, Inventory inv, List<ItemStack> drops) {
+    private void addUtilityDrop(EliteMobsConfig cfg, Inventory inv, List<ItemStack> drops) {
         double chance = cfg.lootConfig.dropOffhandItemChance;
         if (random.nextDouble() > chance) return;
         ItemStack utility = inv.getHotbar().getItemStack((short) UTILITY_SLOT_INDEX);
@@ -215,21 +228,22 @@ public final class EliteMobsDeathSystem extends DeathSystems.OnDeathSystem {
         }
     }
 
-    void decrementSummonerAliveCount(NPCEntity npc, EliteMobsSummonedMinionComponent minion, Store<EntityStore> store) {
+    void decrementSummonerAliveCount(NPCEntity npc, EliteMobsSummonedMinionComponent minion, Store<EntityStore> store,
+                                     CommandBuffer<EntityStore> commandBuffer) {
         if (minion.summonerId == null) return;
         var world = npc.getWorld();
         if (world == null) return;
         Ref<EntityStore> summonerRef = world.getEntityRef(minion.summonerId);
         if (summonerRef == null || !summonerRef.isValid()) return;
-        StoreHelpers.withEntity(store, summonerRef, (summonerChunk, summonerCb, summonerIndex) -> {
-            EliteMobsSummonMinionTrackingComponent summonerTracking = store.getComponent(summonerRef, plugin.getSummonMinionTrackingComponent());
-            if (summonerTracking == null) return;
-            summonerTracking.decrementCount();
-            summonerCb.replaceComponent(summonerRef, plugin.getSummonMinionTrackingComponent(), summonerTracking);
-        });
+        EliteMobsSummonMinionTrackingComponent summonerTracking = store.getComponent(summonerRef,
+                                                                                     plugin.getSummonMinionTrackingComponentType()
+        );
+        if (summonerTracking == null) return;
+        summonerTracking.decrementCount();
+        commandBuffer.replaceComponent(summonerRef, plugin.getSummonMinionTrackingComponentType(), summonerTracking);
     }
 
     ComponentType<EntityStore, EliteMobsSummonedMinionComponent> getSummonedMinionComponentType() {
-        return plugin.getSummonedMinionComponent();
+        return plugin.getSummonedMinionComponentType();
     }
 }

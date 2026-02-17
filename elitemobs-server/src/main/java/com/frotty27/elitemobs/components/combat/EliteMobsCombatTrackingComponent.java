@@ -9,8 +9,7 @@ import org.jspecify.annotations.Nullable;
 public final class EliteMobsCombatTrackingComponent implements Component<EntityStore> {
 
     public enum CombatState {
-        IDLE,
-        IN_COMBAT;
+        IDLE, IN_COMBAT
     }
 
     public CombatState state;
@@ -61,10 +60,6 @@ public final class EliteMobsCombatTrackingComponent implements Component<EntityS
         return state == CombatState.IN_COMBAT;
     }
 
-    public boolean isIdle() {
-        return state == CombatState.IDLE;
-    }
-
     public void transitionToInCombat(@Nullable Ref<EntityStore> targetRef, long currentTick) {
         this.state = CombatState.IN_COMBAT;
         this.stateChangedTick = currentTick;
@@ -89,8 +84,4 @@ public final class EliteMobsCombatTrackingComponent implements Component<EntityS
         this.aiTarget = targetRef;
     }
 
-    public void clearTargets() {
-        this.damageBasedTarget = null;
-        this.aiTarget = null;
-    }
 }

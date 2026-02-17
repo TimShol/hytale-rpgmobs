@@ -1,10 +1,6 @@
 package com.frotty27.elitemobs.api;
 
-import com.frotty27.elitemobs.api.event.*;
-import com.frotty27.elitemobs.api.events.EliteMobAbilityCompletedEvent;
-import com.frotty27.elitemobs.api.events.EliteMobAbilityInterruptedEvent;
-import com.frotty27.elitemobs.api.events.EliteMobAbilityStartedEvent;
-import com.frotty27.elitemobs.api.events.EliteMobScalingAppliedEvent;
+import com.frotty27.elitemobs.api.events.*;
 import com.frotty27.elitemobs.logs.EliteMobsLogLevel;
 import com.frotty27.elitemobs.logs.EliteMobsLogger;
 import com.hypixel.hytale.logger.HytaleLogger;

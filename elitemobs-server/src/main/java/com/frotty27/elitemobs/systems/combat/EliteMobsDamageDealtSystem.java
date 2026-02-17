@@ -1,8 +1,6 @@
 package com.frotty27.elitemobs.systems.combat;
 
-import java.util.Random;
-import java.util.Set;
-
+import com.frotty27.elitemobs.api.events.EliteMobDamageDealtEvent;
 import com.frotty27.elitemobs.components.EliteMobsTierComponent;
 import com.frotty27.elitemobs.config.EliteMobsConfig;
 import com.frotty27.elitemobs.exceptions.EliteMobsException;
@@ -25,6 +23,9 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import org.jspecify.annotations.NonNull;
+
+import java.util.Random;
+import java.util.Set;
 
 import static com.frotty27.elitemobs.utils.ClampingHelpers.clampTierIndex;
 import static com.frotty27.elitemobs.utils.Constants.TIERS_AMOUNT;
@@ -158,8 +159,9 @@ public final class EliteMobsDamageDealtSystem extends DamageEventSystem {
             return;
         }
 
-        EliteMobsTierComponent attackerTierComponent =
-                entityStore.getComponent(attackerEntityRef, eliteMobsPlugin.getEliteMobsComponent());
+        EliteMobsTierComponent attackerTierComponent = entityStore.getComponent(attackerEntityRef,
+                                                                                eliteMobsPlugin.getEliteMobsComponentType()
+        );
         if (attackerTierComponent == null || attackerTierComponent.tierIndex < 0) {
             skippedAttackerNotEliteCount++;
 
@@ -182,12 +184,17 @@ public final class EliteMobsDamageDealtSystem extends DamageEventSystem {
 
         Ref<EntityStore> victimRef = archetypeChunk.getReferenceTo(entityIndex);
         if (victimRef != null && victimRef.isValid()) {
-            com.frotty27.elitemobs.components.combat.EliteMobsCombatTrackingComponent combatTracking =
-                    entityStore.getComponent(attackerEntityRef, eliteMobsPlugin.getCombatTrackingComponent());
+            com.frotty27.elitemobs.components.combat.EliteMobsCombatTrackingComponent combatTracking = entityStore.getComponent(
+                    attackerEntityRef,
+                    eliteMobsPlugin.getCombatTrackingComponentType()
+            );
             if (combatTracking != null) {
                 long currentTick = eliteMobsPlugin.getTickClock().getTick();
                 combatTracking.transitionToInCombat(victimRef, currentTick);
-                commandBuffer.replaceComponent(attackerEntityRef, eliteMobsPlugin.getCombatTrackingComponent(), combatTracking);
+                commandBuffer.replaceComponent(attackerEntityRef,
+                                               eliteMobsPlugin.getCombatTrackingComponentType(),
+                                               combatTracking
+                );
             }
         }
 
@@ -201,8 +208,10 @@ public final class EliteMobsDamageDealtSystem extends DamageEventSystem {
 
 
         float distanceDamageBonus = 0f;
-        com.frotty27.elitemobs.components.progression.EliteMobsProgressionComponent progressionComponent =
-                entityStore.getComponent(attackerEntityRef, eliteMobsPlugin.getProgressionComponent());
+        com.frotty27.elitemobs.components.progression.EliteMobsProgressionComponent progressionComponent = entityStore.getComponent(
+                attackerEntityRef,
+                eliteMobsPlugin.getProgressionComponentType()
+        );
         if (progressionComponent != null) {
             distanceDamageBonus = progressionComponent.distanceDamageBonus();
         }
@@ -220,10 +229,10 @@ public final class EliteMobsDamageDealtSystem extends DamageEventSystem {
 
         float damageBeforeScaling = damage.getAmount();
 
-        
+
         NPCEntity attackerNpc = entityStore.getComponent(attackerEntityRef, NPC_COMPONENT_TYPE);
         String attackerRole = safeRoleName(attackerNpc);
-        var damageEvent = new com.frotty27.elitemobs.api.event.EliteMobDamageDealtEvent(
+        var damageEvent = new EliteMobDamageDealtEvent(
                 attackerEntityRef, clampedTierIndex, attackerRole,
                 victimRef, damageBeforeScaling, totalMultiplier);
         eliteMobsPlugin.getEventBus().fire(damageEvent);

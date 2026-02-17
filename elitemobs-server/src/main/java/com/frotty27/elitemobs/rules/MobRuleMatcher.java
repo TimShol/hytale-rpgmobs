@@ -1,9 +1,9 @@
 package com.frotty27.elitemobs.rules;
 
+import com.frotty27.elitemobs.config.EliteMobsConfig;
+
 import java.util.List;
 import java.util.Map;
-
-import com.frotty27.elitemobs.config.EliteMobsConfig;
 
 import static com.frotty27.elitemobs.utils.StringHelpers.normalizeLower;
 
@@ -77,10 +77,10 @@ public final class MobRuleMatcher {
         return null;
     }
 
-    private static boolean roleNameContainsAnyDeniedId(String id, List<String> matchExcldueList) {
-        if (matchExcldueList == null || matchExcldueList.isEmpty()) return false;
+    private static boolean roleNameContainsAnyDeniedId(String id, List<String> matchExcludeList) {
+        if (matchExcludeList == null || matchExcludeList.isEmpty()) return false;
 
-        for (String matchExcludeEntry : matchExcldueList) {
+        for (String matchExcludeEntry : matchExcludeList) {
             String normalizedExcludeEntry = normalizeEntry(matchExcludeEntry);
             if (normalizedExcludeEntry.isEmpty()) continue;
             if (id.contains(normalizedExcludeEntry)) return true;

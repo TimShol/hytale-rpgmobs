@@ -14,11 +14,11 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
+import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
-import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import org.jspecify.annotations.NonNull;
@@ -39,7 +39,7 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> {
 
     @Override
     public Query<EntityStore> getQuery() {
-        return Query.and(NPCEntity.getComponentType(), plugin.getEliteMobsComponent());
+        return Query.and(NPCEntity.getComponentType(), plugin.getEliteMobsComponentType());
     }
 
 
@@ -52,7 +52,7 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> {
 
         Ref<EntityStore> npcRef = chunk.getReferenceTo(entityIndex);
 
-        EliteMobsHealthScalingComponent healthComp = store.getComponent(npcRef, plugin.getHealthScalingComponent());
+        EliteMobsHealthScalingComponent healthComp = store.getComponent(npcRef, plugin.getHealthScalingComponentType());
 
         if (healthComp != null && config.healthConfig.enableHealthScaling && healthComp.healthApplied) {
             if (healthComp.healthFinalized && !healthComp.resyncDone) {
@@ -82,7 +82,7 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> {
         if (healthStatValue == null) return;
 
         float distanceHealthBonus = 0f;
-        EliteMobsProgressionComponent prog = store.getComponent(npcRef, plugin.getProgressionComponent());
+        EliteMobsProgressionComponent prog = store.getComponent(npcRef, plugin.getProgressionComponentType());
         if (prog != null) {
             distanceHealthBonus = prog.distanceHealthBonus();
         }
@@ -112,14 +112,14 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> {
         healthComp.resyncDone = true;
         healthComp.healthFinalized = false;
         healthComp.healthFinalizeTries = 0;
-        commandBuffer.replaceComponent(npcRef, plugin.getHealthScalingComponent(), healthComp);
+        commandBuffer.replaceComponent(npcRef, plugin.getHealthScalingComponentType(), healthComp);
     }
 
     private void reconcileConfigChange(Ref<EntityStore> npcRef, Store<EntityStore> store,
                                         CommandBuffer<EntityStore> commandBuffer,
                                         EliteMobsHealthScalingComponent healthComp,
                                         EliteMobsConfig config) {
-        EliteMobsTierComponent tierComp = store.getComponent(npcRef, plugin.getEliteMobsComponent());
+        EliteMobsTierComponent tierComp = store.getComponent(npcRef, plugin.getEliteMobsComponentType());
         if (tierComp == null) return;
 
         int tierIndex = tierComp.tierIndex;
@@ -141,7 +141,7 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> {
         int healthStatId = DefaultEntityStatTypes.getHealth();
 
         float distanceHealthBonus = 0f;
-        EliteMobsProgressionComponent prog = store.getComponent(npcRef, plugin.getProgressionComponent());
+        EliteMobsProgressionComponent prog = store.getComponent(npcRef, plugin.getProgressionComponentType());
         if (prog != null) {
             distanceHealthBonus = prog.distanceHealthBonus();
         }
@@ -163,7 +163,7 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> {
         healthComp.appliedHealthMult = configHealthMult;
         healthComp.healthFinalized = false;
         healthComp.healthFinalizeTries = 0;
-        commandBuffer.replaceComponent(npcRef, plugin.getHealthScalingComponent(), healthComp);
+        commandBuffer.replaceComponent(npcRef, plugin.getHealthScalingComponentType(), healthComp);
 
         LOGGER.atInfo().log("[HealthScaling] Config reconcile: registered new modifier (mult=%.2f), entering VERIFY",
                 totalMultiplier);
@@ -204,8 +204,10 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> {
         EliteMobsConfig config = plugin.getConfig();
         if (config == null || !config.healthConfig.enableHealthScaling) return;
 
-        EliteMobsTierComponent tierComponent = store.getComponent(npcRef, plugin.getEliteMobsComponent());
-        EliteMobsHealthScalingComponent healthScalingComponent = store.getComponent(npcRef, plugin.getHealthScalingComponent());
+        EliteMobsTierComponent tierComponent = store.getComponent(npcRef, plugin.getEliteMobsComponentType());
+        EliteMobsHealthScalingComponent healthScalingComponent = store.getComponent(npcRef,
+                                                                                    plugin.getHealthScalingComponentType()
+        );
 
         if (tierComponent == null) return;
 
@@ -220,7 +222,9 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> {
 
 
         float distanceHealthBonus = 0f;
-        EliteMobsProgressionComponent progressionComponent = store.getComponent(npcRef, plugin.getProgressionComponent());
+        EliteMobsProgressionComponent progressionComponent = store.getComponent(npcRef,
+                                                                                plugin.getProgressionComponentType()
+        );
         if (progressionComponent != null) {
             distanceHealthBonus = progressionComponent.distanceHealthBonus();
         }
@@ -250,20 +254,20 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> {
             healthScalingComponent.healthFinalized = false;
             healthScalingComponent.healthFinalizeTries = 0;
             healthScalingComponent.resyncDone = true;
-            commandBuffer.replaceComponent(npcRef, plugin.getHealthScalingComponent(), healthScalingComponent);
+            commandBuffer.replaceComponent(npcRef, plugin.getHealthScalingComponentType(), healthScalingComponent);
 
             LOGGER.atInfo().log("[HealthScaling] Component stored: healthApplied=true baseMax=%.1f appliedMult=%.2f",
                     healthScalingComponent.baseHealthMax, healthScalingComponent.appliedHealthMult);
         }
 
         float modelScale = 1.0f;
-        EliteMobsModelScalingComponent modelComp = store.getComponent(npcRef, plugin.getModelScalingComponent());
+        EliteMobsModelScalingComponent modelComp = store.getComponent(npcRef, plugin.getModelScalingComponentType());
         if (modelComp != null && modelComp.scaledApplied) {
             modelScale = modelComp.appliedScale;
         }
 
         float damageMultiplier = 1.0f + (tierIndex * 0.5f);
-        EliteMobsProgressionComponent prog = store.getComponent(npcRef, plugin.getProgressionComponent());
+        EliteMobsProgressionComponent prog = store.getComponent(npcRef, plugin.getProgressionComponentType());
         if (prog != null) {
             damageMultiplier += prog.distanceDamageBonus();
         }
@@ -315,7 +319,7 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> {
 
             healthComp.healthFinalized = true;
             healthComp.healthFinalizeTries = HEALTH_FINALIZE_MAX_TRIES;
-            commandBuffer.replaceComponent(npcRef, plugin.getHealthScalingComponent(), healthComp);
+            commandBuffer.replaceComponent(npcRef, plugin.getHealthScalingComponentType(), healthComp);
 
             LOGGER.atInfo().log("[HealthScaling] VERIFY finalized: actualMax=%.1f (base was %.1f)",
                     actualMax, baseMax);
@@ -338,7 +342,7 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> {
                         actualMax, baseMax);
             }
 
-            commandBuffer.replaceComponent(npcRef, plugin.getHealthScalingComponent(), healthComp);
+            commandBuffer.replaceComponent(npcRef, plugin.getHealthScalingComponentType(), healthComp);
         }
     }
 }

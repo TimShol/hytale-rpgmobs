@@ -92,8 +92,10 @@ public final class EliteMobsProjectileResistanceEffectFeature implements IEliteM
         if (effectController == null) return;
 
 
-        com.frotty27.elitemobs.components.effects.EliteMobsActiveEffectsComponent activeEffects =
-                entityStore.getComponent(npcRef, plugin.getActiveEffectsComponent());
+        com.frotty27.elitemobs.components.effects.EliteMobsActiveEffectsComponent activeEffects = entityStore.getComponent(
+                npcRef,
+                plugin.getActiveEffectsComponentType()
+        );
         if (activeEffects == null) {
             activeEffects = new com.frotty27.elitemobs.components.effects.EliteMobsActiveEffectsComponent();
         }
@@ -125,7 +127,7 @@ public final class EliteMobsProjectileResistanceEffectFeature implements IEliteM
 
 
         activeEffects.addEffect(EFFECT_PROJECTILE_RESISTANCE, new com.frotty27.elitemobs.components.data.EffectState(0L, -1L, 1, true));
-        commandBuffer.replaceComponent(npcRef, plugin.getActiveEffectsComponent(), activeEffects);
+        commandBuffer.replaceComponent(npcRef, plugin.getActiveEffectsComponentType(), activeEffects);
 
         if (config.debugConfig.isDebugModeEnabled) {
             EliteMobsLogger.debug(
@@ -166,7 +168,7 @@ public final class EliteMobsProjectileResistanceEffectFeature implements IEliteM
 
 
         activeEffects.removeEffect(EFFECT_PROJECTILE_RESISTANCE);
-        commandBuffer.replaceComponent(npcRef, plugin.getActiveEffectsComponent(), activeEffects);
+        commandBuffer.replaceComponent(npcRef, plugin.getActiveEffectsComponentType(), activeEffects);
     }
 
     private static boolean hasActiveEffectIndex(EffectControllerComponent effectController, int effectIndex) {

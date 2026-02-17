@@ -1,5 +1,7 @@
 package com.frotty27.elitemobs.config.schema;
 
+import org.yaml.snakeyaml.Yaml;
+
 import java.io.Reader;
 import java.lang.reflect.*;
 import java.nio.charset.StandardCharsets;
@@ -7,8 +9,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.*;
-
-import org.yaml.snakeyaml.Yaml;
 
 public final class YamlSerializer {
 
@@ -464,8 +464,6 @@ public final class YamlSerializer {
         out.append("# - YAML overrides are applied on boot\n");
         out.append("# - Missing keys are re-added automatically\n\n");
 
-        fields.sort(Comparator.comparing(fr -> fr.field.getName()));
-
         LinkedHashMap<String, List<FieldRef>> byGroup = new LinkedHashMap<>();
         for (FieldRef fieldRef : fields) {
             Field field = fieldRef.field;
@@ -504,8 +502,6 @@ public final class YamlSerializer {
             Map<String, Object> yamlRoot,
             int baseIndent
     ) throws Exception {
-
-        fields.sort(Comparator.comparing(fr -> fr.field.getName()));
 
         for (FieldRef fieldRef : fields) {
             Field field = fieldRef.field;

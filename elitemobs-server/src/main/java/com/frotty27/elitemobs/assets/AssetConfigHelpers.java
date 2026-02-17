@@ -1,8 +1,8 @@
 package com.frotty27.elitemobs.assets;
 
-import java.util.Map;
-
 import com.frotty27.elitemobs.config.EliteMobsConfig;
+
+import java.util.Map;
 
 public final class AssetConfigHelpers {
 
@@ -17,12 +17,6 @@ public final class AssetConfigHelpers {
         if (map == null) return null;
 
         return map.get(key);
-    }
-
-    public static boolean isAssetConfigEnabledForTier(AssetConfig cfg, int tierIndex) {
-        if (cfg == null) return false;
-        if (cfg instanceof TieredAssetConfig t) return isTieredAssetConfigEnabledForTier(t, tierIndex);
-        return true;
     }
 
     public static boolean isTieredAssetConfigEnabledForTier(TieredAssetConfig cfg, int tierIndex) {
@@ -69,24 +63,5 @@ public final class AssetConfigHelpers {
         if (templatePath == null) return null;
 
         return TemplateNameGenerator.getTemplateNameWithTierFromPath(templatePath, rootCfg, tierIndex);
-    }
-
-
-    public static float getFloatForTier(float[] arr, int tierIndex, float fallback) {
-        if (arr == null) return fallback;
-        if (tierIndex < 0 || tierIndex >= arr.length) return fallback;
-        return arr[tierIndex];
-    }
-
-    public static int getIntForTier(int[] arr, int tierIndex, int fallback) {
-        if (arr == null) return fallback;
-        if (tierIndex < 0 || tierIndex >= arr.length) return fallback;
-        return arr[tierIndex];
-    }
-
-    public static boolean getBoolForTier(boolean[] arr, int tierIndex, boolean fallback) {
-        if (arr == null) return fallback;
-        if (tierIndex < 0 || tierIndex >= arr.length) return fallback;
-        return arr[tierIndex];
     }
 }

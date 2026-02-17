@@ -1,18 +1,19 @@
 package com.frotty27.elitemobs.features;
 
-import java.util.Random;
-
 import com.frotty27.elitemobs.components.EliteMobsTierComponent;
 import com.frotty27.elitemobs.components.ability.SummonUndeadAbilityComponent;
 import com.frotty27.elitemobs.components.summon.EliteMobsSummonMinionTrackingComponent;
 import com.frotty27.elitemobs.config.EliteMobsConfig;
 import com.frotty27.elitemobs.plugin.EliteMobsPlugin;
+import com.frotty27.elitemobs.rules.AbilityGateEvaluator;
 import com.frotty27.elitemobs.systems.ability.AbilityIds;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import org.jspecify.annotations.Nullable;
+
+import java.util.Random;
 
 public final class EliteMobsUndeadSummonAbilityFeature implements IEliteMobsAbilityFeature {
 
@@ -51,29 +52,8 @@ public final class EliteMobsUndeadSummonAbilityFeature implements IEliteMobsAbil
 
         int tierIndex = tierComponent.tierIndex;
 
-        if (!abilityConfig.isEnabled) {
+        if (!AbilityGateEvaluator.isAllowed(abilityConfig, roleName, "", tierIndex)) {
             return;
-        }
-
-        if (tierIndex < 0 || tierIndex >= abilityConfig.isEnabledPerTier.length) {
-            return;
-        }
-
-        if (!abilityConfig.isEnabledPerTier[tierIndex]) {
-            return;
-        }
-
-        if (abilityConfig.gate != null && abilityConfig.gate.roleMustContain != null) {
-            if (roleName == null) {
-                return;
-            }
-
-            boolean roleMatches = abilityConfig.gate.roleMustContain.stream()
-                .anyMatch(keyword -> roleName.toLowerCase().contains(keyword.toLowerCase()));
-
-            if (!roleMatches) {
-                return;
-            }
         }
 
         
@@ -89,10 +69,11 @@ public final class EliteMobsUndeadSummonAbilityFeature implements IEliteMobsAbil
         component.pendingSummonTicksRemaining = 0L;
         component.pendingSummonRole = null;
 
-        commandBuffer.putComponent(npcRef, plugin.getSummonUndeadAbilityComponent(), component);
+        commandBuffer.putComponent(npcRef, plugin.getSummonUndeadAbilityComponentType(), component);
 
         EliteMobsSummonMinionTrackingComponent trackingComponent = EliteMobsSummonMinionTrackingComponent.forParent();
-        commandBuffer.putComponent(npcRef, plugin.getSummonMinionTrackingComponent(), trackingComponent);
+        commandBuffer.putComponent(npcRef, plugin.getSummonMinionTrackingComponentType(), trackingComponent);
+
     }
 
     @Override

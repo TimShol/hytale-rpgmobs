@@ -10,16 +10,11 @@ import java.util.Map;
 
 public final class EliteMobsActiveEffectsComponent implements Component<EntityStore> {
 
-
     public Map<String, EffectState> activeEffects;
-
 
     public static final BuilderCodec<EliteMobsActiveEffectsComponent> CODEC =
             BuilderCodec.builder(EliteMobsActiveEffectsComponent.class, EliteMobsActiveEffectsComponent::new)
-
-
                     .build();
-
 
     public EliteMobsActiveEffectsComponent() {
         this.activeEffects = new HashMap<>();
@@ -38,11 +33,5 @@ public final class EliteMobsActiveEffectsComponent implements Component<EntitySt
 
     public void removeEffect(String effectId) {
         activeEffects.remove(effectId);
-    }
-
-    public int removeExpiredEffects(long currentTick) {
-        int sizeBefore = activeEffects.size();
-        activeEffects.entrySet().removeIf(entry -> entry.getValue().isExpired(currentTick));
-        return sizeBefore - activeEffects.size();
     }
 }

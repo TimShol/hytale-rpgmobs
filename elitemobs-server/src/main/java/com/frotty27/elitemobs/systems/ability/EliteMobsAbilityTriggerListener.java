@@ -1,13 +1,7 @@
 package com.frotty27.elitemobs.systems.ability;
 
 import com.frotty27.elitemobs.api.IEliteMobsEventListener;
-import com.frotty27.elitemobs.api.event.EliteMobAggroEvent;
-import com.frotty27.elitemobs.api.event.EliteMobDamageReceivedEvent;
-import com.frotty27.elitemobs.api.event.EliteMobDeaggroEvent;
-import com.frotty27.elitemobs.api.event.EliteMobDeathEvent;
-import com.frotty27.elitemobs.api.events.EliteMobAbilityCompletedEvent;
-import com.frotty27.elitemobs.api.events.EliteMobAbilityInterruptedEvent;
-import com.frotty27.elitemobs.api.events.EliteMobAbilityStartedEvent;
+import com.frotty27.elitemobs.api.events.*;
 import com.frotty27.elitemobs.assets.TemplateNameGenerator;
 import com.frotty27.elitemobs.components.EliteMobsTierComponent;
 import com.frotty27.elitemobs.components.ability.ChargeLeapAbilityComponent;
@@ -15,23 +9,31 @@ import com.frotty27.elitemobs.components.ability.EliteMobsAbilityLockComponent;
 import com.frotty27.elitemobs.components.ability.HealLeapAbilityComponent;
 import com.frotty27.elitemobs.components.ability.SummonUndeadAbilityComponent;
 import com.frotty27.elitemobs.components.combat.EliteMobsCombatTrackingComponent;
+import com.frotty27.elitemobs.components.summon.EliteMobsSummonMinionTrackingComponent;
 import com.frotty27.elitemobs.config.EliteMobsConfig;
 import com.frotty27.elitemobs.features.EliteMobsAbilityFeatureHelpers;
 import com.frotty27.elitemobs.logs.EliteMobsLogLevel;
 import com.frotty27.elitemobs.logs.EliteMobsLogger;
 import com.frotty27.elitemobs.plugin.EliteMobsPlugin;
 import com.frotty27.elitemobs.utils.AbilityHelpers;
+import com.frotty27.elitemobs.utils.Constants;
 import com.frotty27.elitemobs.utils.StoreHelpers;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.math.vector.Vector3d;
+import com.hypixel.hytale.protocol.InteractionType;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
+import com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+
+import java.util.Locale;
+import java.util.Objects;
 
 import static com.frotty27.elitemobs.utils.ClampingHelpers.clampTierIndex;
 
@@ -83,10 +85,14 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
         Store<EntityStore> store = entityRef.getStore();
         if (store == null) return;
 
-        EliteMobsTierComponent tier = store.getComponent(entityRef, plugin.getEliteMobsComponent());
+        // Dead mobs cannot use abilities
+        DeathComponent death = store.getComponent(entityRef, DeathComponent.getComponentType());
+        if (death != null) return;
+
+        EliteMobsTierComponent tier = store.getComponent(entityRef, plugin.getEliteMobsComponentType());
         if (tier == null || tier.tierIndex < 0) return;
 
-        EliteMobsAbilityLockComponent lock = store.getComponent(entityRef, plugin.getAbilityLockComponent());
+        EliteMobsAbilityLockComponent lock = store.getComponent(entityRef, plugin.getAbilityLockComponentType());
         if (lock != null && (lock.isLocked() || lock.isChainStartPending())) {
             LOGGER.atInfo().log("[AbilityEval] SKIP: lock active (locked=%b pending=%b ability=%s) source=%s",
                     lock.isLocked(), lock.isChainStartPending(), lock.activeAbilityId, source.name());
@@ -96,28 +102,22 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
         EliteMobsConfig config = plugin.getConfig();
         if (config == null) return;
 
-        long currentTick = plugin.getTickClock().getTick();
         int tierIndex = clampTierIndex(tier.tierIndex);
 
         if (source == AbilityTriggerSource.DAMAGE_RECEIVED) {
-            if (tryTriggerHealLeap(entityRef, store, tier, currentTick, config, tierIndex)) return;
+            if (tryTriggerHealLeap(entityRef, store, config, tierIndex)) return;
         }
 
         if (source == AbilityTriggerSource.AGGRO) {
-            if (tryTriggerChargeLeap(entityRef, store, tier, currentTick, config, tierIndex)) return;
-            tryTriggerSummonUndead(entityRef, store, tier, currentTick, config, tierIndex);
+            if (tryTriggerChargeLeap(entityRef, store, config, tierIndex)) return;
+            tryTriggerSummonUndead(entityRef, store, config, tierIndex);
         }
     }
 
-    private boolean tryTriggerHealLeap(
-            Ref<EntityStore> entityRef,
-            Store<EntityStore> store,
-            EliteMobsTierComponent tier,
-            long currentTick,
-            EliteMobsConfig config,
+    private boolean tryTriggerHealLeap(Ref<EntityStore> entityRef, Store<EntityStore> store, EliteMobsConfig config,
             int tierIndex
     ) {
-        HealLeapAbilityComponent healLeap = store.getComponent(entityRef, plugin.getHealLeapAbilityComponent());
+        HealLeapAbilityComponent healLeap = store.getComponent(entityRef, plugin.getHealLeapAbilityComponentType());
         if (healLeap == null || !healLeap.abilityEnabled) return false;
 
         if (healLeap.cooldownTicksRemaining > 0) return false;
@@ -142,8 +142,7 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
 
         EliteMobsConfig.HealLeapAbilityConfig abilityConfig = getHealLeapConfig(config);
         if (abilityConfig != null) {
-            long cooldownTicks = getCooldownTicks(abilityConfig.cooldownSecondsPerTier, tierIndex);
-            healLeap.cooldownTicksRemaining = cooldownTicks;
+            healLeap.cooldownTicksRemaining = getCooldownTicks(abilityConfig.cooldownSecondsPerTier, tierIndex);
         }
 
         lockAbility(entityRef, store, AbilityIds.HEAL_LEAP);
@@ -155,25 +154,25 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
         return true;
     }
 
-    private boolean tryTriggerChargeLeap(
-            Ref<EntityStore> entityRef,
-            Store<EntityStore> store,
-            EliteMobsTierComponent tier,
-            long currentTick,
-            EliteMobsConfig config,
+    private boolean tryTriggerChargeLeap(Ref<EntityStore> entityRef, Store<EntityStore> store, EliteMobsConfig config,
             int tierIndex
     ) {
-        ChargeLeapAbilityComponent chargeLeap = store.getComponent(entityRef, plugin.getChargeLeapAbilityComponent());
+        ChargeLeapAbilityComponent chargeLeap = store.getComponent(entityRef,
+                                                                   plugin.getChargeLeapAbilityComponentType()
+        );
         if (chargeLeap == null || !chargeLeap.abilityEnabled) return false;
 
         if (chargeLeap.cooldownTicksRemaining > 0) {
             LOGGER.atInfo().log("[ChargeLeap] BLOCKED by cooldown: remaining=%d ticks (%.1f sec)",
                     chargeLeap.cooldownTicksRemaining,
-                    chargeLeap.cooldownTicksRemaining / (float) com.frotty27.elitemobs.utils.Constants.TICKS_PER_SECOND);
+                                chargeLeap.cooldownTicksRemaining / (float) Constants.TICKS_PER_SECOND
+            );
             return false;
         }
 
-        EliteMobsCombatTrackingComponent combat = store.getComponent(entityRef, plugin.getCombatTrackingComponent());
+        EliteMobsCombatTrackingComponent combat = store.getComponent(entityRef,
+                                                                     plugin.getCombatTrackingComponentType()
+        );
         if (combat == null || !combat.isInCombat()) {
             LOGGER.atInfo().log("[ChargeLeap] BLOCKED: mob not in combat (state=%s)",
                     combat != null ? combat.state.name() : "null");
@@ -195,7 +194,14 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
         if (abilityConfig == null) return false;
 
         float distance = calculateDistance(entityRef, targetRef, store);
-        if (distance < abilityConfig.minRange || distance > abilityConfig.maxRange) return false;
+        if (distance < abilityConfig.minRange || distance > abilityConfig.maxRange) {
+            LOGGER.atInfo().log("[ChargeLeap] BLOCKED by distance: dist=%.1f (range=%.1f-%.1f)",
+                                distance,
+                                abilityConfig.minRange,
+                                abilityConfig.maxRange
+            );
+            return false;
+        }
 
         EliteMobAbilityStartedEvent startedEvent = new EliteMobAbilityStartedEvent(
                 entityRef, AbilityIds.CHARGE_LEAP, tierIndex, targetRef
@@ -216,52 +222,74 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
 
         LOGGER.atInfo().log("[ChargeLeap] TRIGGERED: dist=%.1f (range=%.1f-%.1f) tier=%d cooldown=%d ticks (%.1f sec)",
                 distance, abilityConfig.minRange, abilityConfig.maxRange, tierIndex,
-                cooldownTicks, cooldownTicks / (float) com.frotty27.elitemobs.utils.Constants.TICKS_PER_SECOND);
+                            cooldownTicks,
+                            cooldownTicks / (float) Constants.TICKS_PER_SECOND
+        );
 
         return true;
     }
 
-    private boolean tryTriggerSummonUndead(
-            Ref<EntityStore> entityRef,
-            Store<EntityStore> store,
-            EliteMobsTierComponent tier,
-            long currentTick,
-            EliteMobsConfig config,
+    private static final long SUMMON_SPAWN_DELAY_TICKS = 66;
+
+    private void tryTriggerSummonUndead(Ref<EntityStore> entityRef, Store<EntityStore> store, EliteMobsConfig config,
             int tierIndex
     ) {
-        SummonUndeadAbilityComponent summon = store.getComponent(entityRef, plugin.getSummonUndeadAbilityComponent());
-        if (summon == null || !summon.abilityEnabled) return false;
+        SummonUndeadAbilityComponent summon = store.getComponent(entityRef,
+                                                                 plugin.getSummonUndeadAbilityComponentType()
+        );
+        if (summon == null || !summon.abilityEnabled) return;
 
-        if (summon.cooldownTicksRemaining > 0) return false;
+        if (summon.cooldownTicksRemaining > 0) return;
+
+        EliteMobsConfig.SummonAbilityConfig abilityConfig = getSummonConfig(config);
+        if (abilityConfig == null) return;
+
+        EliteMobsSummonMinionTrackingComponent tracking = store.getComponent(entityRef,
+                                                                             plugin.getSummonMinionTrackingComponentType()
+        );
+        if (tracking != null) {
+            int maxAlive = Math.max(0, Math.min(50, abilityConfig.maxAlive));
+            if (!tracking.canSummonMore(maxAlive)) {
+                LOGGER.atInfo().log("[SummonUndead] BLOCKED: cap reached alive=%d max=%d",
+                                    tracking.summonedAliveCount,
+                                    maxAlive
+                );
+                return;
+            }
+        }
+
+        String roleIdentifier = resolveSummonRole(entityRef, store, config);
 
         Ref<EntityStore> targetRef = getAggroTarget(entityRef, store);
         EliteMobAbilityStartedEvent startedEvent = new EliteMobAbilityStartedEvent(
                 entityRef, AbilityIds.SUMMON_UNDEAD, tierIndex, targetRef
         );
         plugin.getEventBus().fire(startedEvent);
-        if (startedEvent.isCancelled()) return false;
+        if (startedEvent.isCancelled()) return;
 
         boolean started = startAbilityChain(entityRef, store, AbilityIds.SUMMON_UNDEAD, tierIndex, config);
         if (!started) {
             EliteMobsLogger.debug(LOGGER,
                     "[AbilityTrigger] summon_undead chain failed to start for tier %d",
                     EliteMobsLogLevel.WARNING, tierIndex);
-            return false;
+            return;
         }
 
-        EliteMobsConfig.SummonAbilityConfig abilityConfig = getSummonConfig(config);
-        if (abilityConfig != null) {
-            long cooldownTicks = getCooldownTicks(abilityConfig.cooldownSecondsPerTier, tierIndex);
-            summon.cooldownTicksRemaining = cooldownTicks;
-        }
+        summon.pendingSummonRole = roleIdentifier;
+        summon.pendingSummonTicksRemaining = SUMMON_SPAWN_DELAY_TICKS;
+
+        long cooldownTicks = getCooldownTicks(abilityConfig.cooldownSecondsPerTier, tierIndex);
+        summon.cooldownTicksRemaining = cooldownTicks;
 
         lockAbility(entityRef, store, AbilityIds.SUMMON_UNDEAD);
 
-        EliteMobsLogger.debug(LOGGER,
-                "[AbilityTrigger] summon_undead triggered tier=%d",
-                EliteMobsLogLevel.INFO, tierIndex);
+        LOGGER.atInfo().log("[SummonUndead] TRIGGERED: tier=%d role=%s spawnDelay=%d cooldown=%d ticks",
+                            tierIndex,
+                            roleIdentifier,
+                            SUMMON_SPAWN_DELAY_TICKS,
+                            cooldownTicks
+        );
 
-        return true;
     }
 
     private void handleAbilityCompletionRetrigger(EliteMobAbilityCompletedEvent event) {
@@ -272,28 +300,32 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
         if (store == null) return;
 
         String abilityId = event.getAbilityId();
-        long currentTick = plugin.getTickClock().getTick();
 
         if (AbilityIds.CHARGE_LEAP.equals(abilityId)) {
-            ChargeLeapAbilityComponent chargeLeap = store.getComponent(entityRef, plugin.getChargeLeapAbilityComponent());
+            ChargeLeapAbilityComponent chargeLeap = store.getComponent(entityRef,
+                                                                       plugin.getChargeLeapAbilityComponentType()
+            );
             if (chargeLeap != null) {
                 LOGGER.atInfo().log("[ChargeLeap] COMPLETED: cooldownRemaining=%d ticks (%.1f sec)",
                         chargeLeap.cooldownTicksRemaining,
-                        chargeLeap.cooldownTicksRemaining / (float) com.frotty27.elitemobs.utils.Constants.TICKS_PER_SECOND);
+                                    chargeLeap.cooldownTicksRemaining / (float) Constants.TICKS_PER_SECOND
+                );
             }
         }
 
         unlockAbility(entityRef, store);
 
         if (AbilityIds.SUMMON_UNDEAD.equals(abilityId)) {
-            EliteMobsTierComponent tier = store.getComponent(entityRef, plugin.getEliteMobsComponent());
+            EliteMobsTierComponent tier = store.getComponent(entityRef, plugin.getEliteMobsComponentType());
             if (tier != null && tier.tierIndex >= 0) {
-                EliteMobsCombatTrackingComponent combat = store.getComponent(entityRef, plugin.getCombatTrackingComponent());
+                EliteMobsCombatTrackingComponent combat = store.getComponent(entityRef,
+                                                                             plugin.getCombatTrackingComponentType()
+                );
                 if (combat != null && combat.isInCombat()) {
                     EliteMobsConfig config = plugin.getConfig();
                     if (config != null) {
                         int tierIndex = clampTierIndex(tier.tierIndex);
-                        tryTriggerSummonUndead(entityRef, store, tier, currentTick, config, tierIndex);
+                        tryTriggerSummonUndead(entityRef, store, config, tierIndex);
                     }
                 }
             }
@@ -307,7 +339,7 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
         Store<EntityStore> store = entityRef.getStore();
         if (store == null) return;
 
-        EliteMobsAbilityLockComponent lock = store.getComponent(entityRef, plugin.getAbilityLockComponent());
+        EliteMobsAbilityLockComponent lock = store.getComponent(entityRef, plugin.getAbilityLockComponentType());
         if (lock == null || !lock.isLocked()) return;
 
         String activeAbilityId = lock.activeAbilityId;
@@ -334,12 +366,12 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
 
         LOGGER.atInfo().log("[Deaggro] Mob deaggro'd tier=%d", event.getTier());
 
-        EliteMobsAbilityLockComponent lock = store.getComponent(entityRef, plugin.getAbilityLockComponent());
+        EliteMobsAbilityLockComponent lock = store.getComponent(entityRef, plugin.getAbilityLockComponentType());
         if (lock == null || !lock.isLocked()) return;
 
         String activeAbilityId = lock.activeAbilityId;
 
-        EliteMobsTierComponent tier = store.getComponent(entityRef, plugin.getEliteMobsComponent());
+        EliteMobsTierComponent tier = store.getComponent(entityRef, plugin.getEliteMobsComponentType());
         int tierIndex = (tier != null) ? clampTierIndex(tier.tierIndex) : 0;
 
         EliteMobAbilityInterruptedEvent interruptedEvent = new EliteMobAbilityInterruptedEvent(
@@ -363,11 +395,11 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
         Store<EntityStore> store = entityRef.getStore();
         if (store == null) return false;
 
-        EliteMobsAbilityLockComponent lock = store.getComponent(entityRef, plugin.getAbilityLockComponent());
+        EliteMobsAbilityLockComponent lock = store.getComponent(entityRef, plugin.getAbilityLockComponentType());
         if (lock == null || !lock.isLocked()) return false;
         if (!AbilityIds.HEAL_LEAP.equals(lock.activeAbilityId)) return false;
 
-        HealLeapAbilityComponent healLeap = store.getComponent(entityRef, plugin.getHealLeapAbilityComponent());
+        HealLeapAbilityComponent healLeap = store.getComponent(entityRef, plugin.getHealLeapAbilityComponentType());
         if (healLeap == null) return false;
 
         healLeap.hitsTaken++;
@@ -380,7 +412,7 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
 
         LOGGER.atInfo().log("[HealLeap] INTERRUPTED by %d hits, cancelling chain", healLeap.hitsTaken);
 
-        NPCEntity npcEntity = store.getComponent(entityRef, NPCEntity.getComponentType());
+        NPCEntity npcEntity = store.getComponent(entityRef, Objects.requireNonNull(NPCEntity.getComponentType()));
         if (npcEntity != null) {
             AbilityHelpers.restorePreviousItemIfNeeded(npcEntity, healLeap);
         }
@@ -388,7 +420,7 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
         healLeap.hitsTaken = 0;
 
         EliteMobsConfig config = plugin.getConfig();
-        EliteMobsTierComponent tier2 = store.getComponent(entityRef, plugin.getEliteMobsComponent());
+        EliteMobsTierComponent tier2 = store.getComponent(entityRef, plugin.getEliteMobsComponentType());
         int cancelTierIndex = (tier2 != null) ? clampTierIndex(tier2.tierIndex) : 0;
 
         if (npcEntity != null && npcEntity.getWorld() != null) {
@@ -397,23 +429,25 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
                 var entityStoreProvider = npcEntity.getWorld().getEntityStore();
                 if (entityStoreProvider == null) return;
                 Store<EntityStore> worldStore = entityStoreProvider.getStore();
-                StoreHelpers.withEntity(worldStore, entityRef, (chunk, commandBuffer, index) -> {
+                StoreHelpers.withEntity(worldStore, entityRef, (_, commandBuffer, _) -> {
                     String cancelRootId = resolveCancelRootInteractionId(config, cancelTierIndex);
                     if (cancelRootId != null) {
-                        EliteMobsAbilityFeatureHelpers.tryStartInteraction(
-                                entityRef, worldStore, commandBuffer,
-                                com.hypixel.hytale.protocol.InteractionType.Ability2,
+                        EliteMobsAbilityFeatureHelpers.tryStartInteraction(entityRef,
+                                                                           worldStore,
+                                                                           commandBuffer,
+                                                                           InteractionType.Ability2,
                                 cancelRootId
                         );
                     } else {
                         AbilityHelpers.cancelInteractionType(worldStore, commandBuffer, entityRef,
-                                com.hypixel.hytale.protocol.InteractionType.Ability2);
+                                                             InteractionType.Ability2
+                        );
                     }
                 });
             });
         }
 
-        EliteMobsTierComponent tier = store.getComponent(entityRef, plugin.getEliteMobsComponent());
+        EliteMobsTierComponent tier = store.getComponent(entityRef, plugin.getEliteMobsComponentType());
         int tierIndex = (tier != null) ? clampTierIndex(tier.tierIndex) : 0;
 
         EliteMobAbilityInterruptedEvent interruptedEvent = new EliteMobAbilityInterruptedEvent(
@@ -461,7 +495,7 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
             return false;
         }
 
-        NPCEntity npcEntity = store.getComponent(entityRef, NPCEntity.getComponentType());
+        NPCEntity npcEntity = store.getComponent(entityRef, Objects.requireNonNull(NPCEntity.getComponentType()));
         if (npcEntity == null || npcEntity.getWorld() == null) {
             EliteMobsLogger.debug(LOGGER,
                     "[AbilityTrigger] NPCEntity or World is null for abilityId=%s",
@@ -477,29 +511,52 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
             if (entityStoreProvider == null) return;
             Store<EntityStore> worldStore = entityStoreProvider.getStore();
 
-            StoreHelpers.withEntity(worldStore, entityRef, (chunk, commandBuffer, index) -> {
-                EliteMobsAbilityLockComponent lock = worldStore.getComponent(entityRef, plugin.getAbilityLockComponent());
+            StoreHelpers.withEntity(worldStore, entityRef, (_, commandBuffer, _) -> {
+                EliteMobsAbilityLockComponent lock = worldStore.getComponent(entityRef,
+                                                                             plugin.getAbilityLockComponentType()
+                );
 
                 if (AbilityIds.HEAL_LEAP.equals(abilityId)) {
                     performHealLeapWeaponSwap(entityRef, worldStore, npcEntity);
                 }
+                if (AbilityIds.SUMMON_UNDEAD.equals(abilityId)) {
+                    performSummonSpellbookSwap(entityRef, worldStore, npcEntity);
+                }
 
-                boolean started = EliteMobsAbilityFeatureHelpers.tryStartInteraction(
-                        entityRef,
-                        worldStore,
-                        commandBuffer,
-                        com.hypixel.hytale.protocol.InteractionType.Ability2,
-                        resolvedRootId
-                );
+                boolean started;
+                try {
+                    started = EliteMobsAbilityFeatureHelpers.tryStartInteraction(entityRef,
+                                                                                 worldStore,
+                                                                                 commandBuffer,
+                                                                                 InteractionType.Ability2,
+                                                                                 resolvedRootId
+                    );
+                } catch (Exception e) {
+                    LOGGER.atWarning().log("[AbilityTrigger] Chain start threw exception for rootId=%s: %s",
+                                           resolvedRootId,
+                                           e.getMessage()
+                    );
+                    started = false;
+                }
 
                 if (!started) {
                     if (lock != null && lock.isLocked()) {
                         lock.unlock();
-                        commandBuffer.replaceComponent(entityRef, plugin.getAbilityLockComponent(), lock);
+                        commandBuffer.replaceComponent(entityRef, plugin.getAbilityLockComponentType(), lock);
                     }
                     if (AbilityIds.HEAL_LEAP.equals(abilityId)) {
                         AbilityHelpers.restorePreviousItemIfNeeded(npcEntity,
-                                worldStore.getComponent(entityRef, plugin.getHealLeapAbilityComponent()));
+                                                                   worldStore.getComponent(entityRef,
+                                                                                           plugin.getHealLeapAbilityComponentType()
+                                                                   )
+                        );
+                    }
+                    if (AbilityIds.SUMMON_UNDEAD.equals(abilityId)) {
+                        AbilityHelpers.restoreSummonWeaponIfNeeded(npcEntity,
+                                                                   worldStore.getComponent(entityRef,
+                                                                                           plugin.getSummonUndeadAbilityComponentType()
+                                                                   )
+                        );
                     }
                     EliteMobsLogger.debug(LOGGER,
                             "[AbilityTrigger] Deferred chain start failed for rootId=%s",
@@ -507,7 +564,7 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
                 } else {
                     if (lock != null) {
                         lock.markChainStarted(plugin.getTickClock().getTick());
-                        commandBuffer.replaceComponent(entityRef, plugin.getAbilityLockComponent(), lock);
+                        commandBuffer.replaceComponent(entityRef, plugin.getAbilityLockComponentType(), lock);
                     }
 
                     EliteMobsLogger.debug(LOGGER,
@@ -551,20 +608,22 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
     }
 
     private @Nullable Ref<EntityStore> getAggroTarget(Ref<EntityStore> entityRef, Store<EntityStore> store) {
-        EliteMobsCombatTrackingComponent combat = store.getComponent(entityRef, plugin.getCombatTrackingComponent());
+        EliteMobsCombatTrackingComponent combat = store.getComponent(entityRef,
+                                                                     plugin.getCombatTrackingComponentType()
+        );
         if (combat == null) return null;
         return combat.getBestTarget();
     }
 
     private void lockAbility(Ref<EntityStore> entityRef, Store<EntityStore> store, String abilityId) {
-        EliteMobsAbilityLockComponent lock = store.getComponent(entityRef, plugin.getAbilityLockComponent());
+        EliteMobsAbilityLockComponent lock = store.getComponent(entityRef, plugin.getAbilityLockComponentType());
         if (lock != null) {
             lock.lock(abilityId);
         }
     }
 
     private void unlockAbility(Ref<EntityStore> entityRef, Store<EntityStore> store) {
-        EliteMobsAbilityLockComponent lock = store.getComponent(entityRef, plugin.getAbilityLockComponent());
+        EliteMobsAbilityLockComponent lock = store.getComponent(entityRef, plugin.getAbilityLockComponentType());
         if (lock != null) {
             lock.unlock();
         }
@@ -576,7 +635,7 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
         }
         float seconds = cooldownSecondsPerTier[tierIndex];
         if (seconds <= 0f) return 0L;
-        return (long) (seconds * com.frotty27.elitemobs.utils.Constants.TICKS_PER_SECOND);
+        return (long) (seconds * Constants.TICKS_PER_SECOND);
     }
 
     private void performHealLeapWeaponSwap(
@@ -584,7 +643,7 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
             Store<EntityStore> store,
             NPCEntity npcEntity
     ) {
-        HealLeapAbilityComponent healLeap = store.getComponent(entityRef, plugin.getHealLeapAbilityComponent());
+        HealLeapAbilityComponent healLeap = store.getComponent(entityRef, plugin.getHealLeapAbilityComponentType());
         if (healLeap == null) return;
 
         EliteMobsConfig config = plugin.getConfig();
@@ -601,6 +660,22 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
             LOGGER.atInfo().log("[HealLeap] Weapon swapped to potion '%s'", potionItemId);
         } else {
             LOGGER.atInfo().log("[HealLeap] Weapon swap failed (itemId=%s)", potionItemId);
+        }
+    }
+
+    private void performSummonSpellbookSwap(Ref<EntityStore> entityRef, Store<EntityStore> store, NPCEntity npcEntity) {
+        SummonUndeadAbilityComponent summon = store.getComponent(entityRef,
+                                                                 plugin.getSummonUndeadAbilityComponentType()
+        );
+        if (summon == null) return;
+
+        String staffItemId = "Weapon_Staff_Bone";
+
+        boolean swapped = AbilityHelpers.swapToSpellbookInHand(npcEntity, summon, staffItemId);
+        if (swapped) {
+            LOGGER.atInfo().log("[SummonUndead] Weapon swapped to staff '%s'", staffItemId);
+        } else {
+            LOGGER.atInfo().log("[SummonUndead] Weapon swap failed (itemId=%s)", staffItemId);
         }
     }
 
@@ -624,6 +699,27 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
         return (raw instanceof EliteMobsConfig.SummonAbilityConfig c) ? c : null;
     }
 
+    private @NonNull String resolveSummonRole(Ref<EntityStore> entityRef, Store<EntityStore> store,
+                                              EliteMobsConfig config) {
+        NPCEntity npc = store.getComponent(entityRef, Objects.requireNonNull(NPCEntity.getComponentType()));
+        if (npc == null) return "default";
+
+        String roleName = npc.getRoleName();
+        if (roleName == null || roleName.isBlank()) return "default";
+
+        EliteMobsConfig.SummonAbilityConfig summonConfig = getSummonConfig(config);
+        if (summonConfig == null || summonConfig.roleIdentifiers == null) return "default";
+
+        String roleNameLower = roleName.toLowerCase(Locale.ROOT);
+        for (String identifier : summonConfig.roleIdentifiers) {
+            if (identifier == null || identifier.isBlank()) continue;
+            if (roleNameLower.contains(identifier.toLowerCase(Locale.ROOT))) {
+                return identifier;
+            }
+        }
+        return "default";
+    }
+
     private @Nullable String resolveCancelRootInteractionId(EliteMobsConfig config, int tierIndex) {
         if (config == null) return null;
         EliteMobsConfig.HealLeapAbilityConfig healConfig = getHealLeapConfig(config);
@@ -637,7 +733,5 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
 }
 
 enum AbilityTriggerSource {
-    AGGRO,
-    DAMAGE_RECEIVED,
-    COOLDOWN_EXPIRED
+    AGGRO, DAMAGE_RECEIVED
 }

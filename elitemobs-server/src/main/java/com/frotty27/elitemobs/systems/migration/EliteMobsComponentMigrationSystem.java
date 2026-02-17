@@ -1,10 +1,8 @@
 package com.frotty27.elitemobs.systems.migration;
 
-import java.util.Random;
-
 import com.frotty27.elitemobs.components.EliteMobsTierComponent;
-import com.frotty27.elitemobs.components.ability.EliteMobsAbilityLockComponent;
 import com.frotty27.elitemobs.components.ability.ChargeLeapAbilityComponent;
+import com.frotty27.elitemobs.components.ability.EliteMobsAbilityLockComponent;
 import com.frotty27.elitemobs.components.ability.HealLeapAbilityComponent;
 import com.frotty27.elitemobs.components.ability.SummonUndeadAbilityComponent;
 import com.frotty27.elitemobs.components.combat.EliteMobsCombatTrackingComponent;
@@ -25,6 +23,9 @@ import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import org.jspecify.annotations.NonNull;
+
+import java.util.Random;
 
 public final class EliteMobsComponentMigrationSystem extends EntityTickingSystem<EntityStore> {
 
@@ -40,15 +41,16 @@ public final class EliteMobsComponentMigrationSystem extends EntityTickingSystem
 
     @Override
     public Query<EntityStore> getQuery() {
-        return Query.and(plugin.getEliteMobsComponent());
+        return Query.and(plugin.getEliteMobsComponentType());
     }
 
     @Override
-    public void tick(float v, int entityIndex, ArchetypeChunk<EntityStore> chunk, Store<EntityStore> entityStore, CommandBuffer<EntityStore> commandBuffer) {
+    public void tick(float v, int entityIndex, ArchetypeChunk<EntityStore> chunk, Store<EntityStore> entityStore,
+                     @NonNull CommandBuffer<EntityStore> commandBuffer) {
         Ref<EntityStore> entityRef = chunk.getReferenceTo(entityIndex);
-        EliteMobsTierComponent tier = chunk.getComponent(entityIndex, plugin.getEliteMobsComponent());
+        EliteMobsTierComponent tier = chunk.getComponent(entityIndex, plugin.getEliteMobsComponentType());
 
-        EliteMobsMigrationComponent migration = entityStore.getComponent(entityRef, plugin.getMigrationComponent());
+        EliteMobsMigrationComponent migration = entityStore.getComponent(entityRef, plugin.getMigrationComponentType());
         int currentVersion = (migration != null) ? migration.migrationVersion : 0;
 
         if (currentVersion >= CURRENT_MIGRATION_VERSION) {
@@ -56,22 +58,19 @@ public final class EliteMobsComponentMigrationSystem extends EntityTickingSystem
         }
 
         if (currentVersion == 0) {
-            migrateFromV0(entityRef, tier, entityStore, commandBuffer);
+            migrateFromV0(entityRef, tier, commandBuffer);
         } else if (currentVersion == 1) {
             migrateFromV1(entityRef, entityStore, commandBuffer);
         }
 
         EliteMobsMigrationComponent updatedMigration = new EliteMobsMigrationComponent(CURRENT_MIGRATION_VERSION);
-        commandBuffer.putComponent(entityRef, plugin.getMigrationComponent(), updatedMigration);
+        commandBuffer.putComponent(entityRef, plugin.getMigrationComponentType(), updatedMigration);
 
         LOGGER.atInfo().log("Migrated entity from version %d to %d (tier %d)", currentVersion, CURRENT_MIGRATION_VERSION, tier.tierIndex);
     }
 
-    private void migrateFromV0(
-        Ref<EntityStore> entityRef,
-        EliteMobsTierComponent tier,
-        Store<EntityStore> entityStore,
-        CommandBuffer<EntityStore> commandBuffer
+    private void migrateFromV0(Ref<EntityStore> entityRef, EliteMobsTierComponent tier,
+                               CommandBuffer<EntityStore> commandBuffer
     ) {
         EliteMobsConfig config = plugin.getConfig();
         int tierIndex = tier.tierIndex;
@@ -83,19 +82,37 @@ public final class EliteMobsComponentMigrationSystem extends EntityTickingSystem
         migrateSummonUndeadAbility(entityRef, config, tierIndex, commandBuffer);
 
         if (config.healthConfig.enableHealthScaling) {
-            commandBuffer.putComponent(entityRef, plugin.getHealthScalingComponent(), new EliteMobsHealthScalingComponent());
+            commandBuffer.putComponent(entityRef,
+                                       plugin.getHealthScalingComponentType(),
+                                       new EliteMobsHealthScalingComponent()
+            );
         }
         if (config.modelConfig.enableModelScaling) {
-            commandBuffer.putComponent(entityRef, plugin.getModelScalingComponent(), new EliteMobsModelScalingComponent());
+            commandBuffer.putComponent(entityRef,
+                                       plugin.getModelScalingComponentType(),
+                                       new EliteMobsModelScalingComponent()
+            );
         }
 
-        commandBuffer.putComponent(entityRef, plugin.getProgressionComponent(), new EliteMobsProgressionComponent());
+        commandBuffer.putComponent(entityRef,
+                                   plugin.getProgressionComponentType(),
+                                   new EliteMobsProgressionComponent()
+        );
 
-        commandBuffer.putComponent(entityRef, plugin.getActiveEffectsComponent(), new EliteMobsActiveEffectsComponent());
+        commandBuffer.putComponent(entityRef,
+                                   plugin.getActiveEffectsComponentType(),
+                                   new EliteMobsActiveEffectsComponent()
+        );
 
-        commandBuffer.putComponent(entityRef, plugin.getCombatTrackingComponent(), new EliteMobsCombatTrackingComponent());
+        commandBuffer.putComponent(entityRef,
+                                   plugin.getCombatTrackingComponentType(),
+                                   new EliteMobsCombatTrackingComponent()
+        );
 
-        commandBuffer.putComponent(entityRef, plugin.getAbilityLockComponent(), new EliteMobsAbilityLockComponent());
+        commandBuffer.putComponent(entityRef,
+                                   plugin.getAbilityLockComponentType(),
+                                   new EliteMobsAbilityLockComponent()
+        );
     }
 
     private void migrateFromV1(
@@ -107,22 +124,37 @@ public final class EliteMobsComponentMigrationSystem extends EntityTickingSystem
         LOGGER.atInfo().log("Migrating entity from v1 - creating split scaling components with defaults");
 
         if (config.healthConfig.enableHealthScaling) {
-            EliteMobsHealthScalingComponent healthScaling = entityStore.getComponent(entityRef, plugin.getHealthScalingComponent());
+            EliteMobsHealthScalingComponent healthScaling = entityStore.getComponent(entityRef,
+                                                                                     plugin.getHealthScalingComponentType()
+            );
             if (healthScaling == null) {
-                commandBuffer.putComponent(entityRef, plugin.getHealthScalingComponent(), new EliteMobsHealthScalingComponent());
+                commandBuffer.putComponent(entityRef,
+                                           plugin.getHealthScalingComponentType(),
+                                           new EliteMobsHealthScalingComponent()
+                );
             }
         }
 
         if (config.modelConfig.enableModelScaling) {
-            EliteMobsModelScalingComponent modelScaling = entityStore.getComponent(entityRef, plugin.getModelScalingComponent());
+            EliteMobsModelScalingComponent modelScaling = entityStore.getComponent(entityRef,
+                                                                                   plugin.getModelScalingComponentType()
+            );
             if (modelScaling == null) {
-                commandBuffer.putComponent(entityRef, plugin.getModelScalingComponent(), new EliteMobsModelScalingComponent());
+                commandBuffer.putComponent(entityRef,
+                                           plugin.getModelScalingComponentType(),
+                                           new EliteMobsModelScalingComponent()
+                );
             }
         }
 
-        EliteMobsAbilityLockComponent abilityLock = entityStore.getComponent(entityRef, plugin.getAbilityLockComponent());
+        EliteMobsAbilityLockComponent abilityLock = entityStore.getComponent(entityRef,
+                                                                             plugin.getAbilityLockComponentType()
+        );
         if (abilityLock == null) {
-            commandBuffer.putComponent(entityRef, plugin.getAbilityLockComponent(), new EliteMobsAbilityLockComponent());
+            commandBuffer.putComponent(entityRef,
+                                       plugin.getAbilityLockComponentType(),
+                                       new EliteMobsAbilityLockComponent()
+            );
         }
     }
 
@@ -157,7 +189,7 @@ public final class EliteMobsComponentMigrationSystem extends EntityTickingSystem
         component.abilityEnabled = enabled;
         component.triggerHealthPercent = 0.25f;
         component.cooldownTicksRemaining = 0L;
-        commandBuffer.putComponent(entityRef, plugin.getHealLeapAbilityComponent(), component);
+        commandBuffer.putComponent(entityRef, plugin.getHealLeapAbilityComponentType(), component);
     }
 
     private void migrateChargeLeapAbility(
@@ -190,7 +222,7 @@ public final class EliteMobsComponentMigrationSystem extends EntityTickingSystem
         ChargeLeapAbilityComponent component = new ChargeLeapAbilityComponent();
         component.abilityEnabled = enabled;
         component.cooldownTicksRemaining = 0L;
-        commandBuffer.putComponent(entityRef, plugin.getChargeLeapAbilityComponent(), component);
+        commandBuffer.putComponent(entityRef, plugin.getChargeLeapAbilityComponentType(), component);
     }
 
     private void migrateSummonUndeadAbility(
@@ -225,9 +257,9 @@ public final class EliteMobsComponentMigrationSystem extends EntityTickingSystem
         component.cooldownTicksRemaining = 0L;
         component.pendingSummonTicksRemaining = 0L;
         component.pendingSummonRole = null;
-        commandBuffer.putComponent(entityRef, plugin.getSummonUndeadAbilityComponent(), component);
+        commandBuffer.putComponent(entityRef, plugin.getSummonUndeadAbilityComponentType(), component);
 
         EliteMobsSummonMinionTrackingComponent trackingComponent = EliteMobsSummonMinionTrackingComponent.forParent();
-        commandBuffer.putComponent(entityRef, plugin.getSummonMinionTrackingComponent(), trackingComponent);
+        commandBuffer.putComponent(entityRef, plugin.getSummonMinionTrackingComponentType(), trackingComponent);
     }
 }

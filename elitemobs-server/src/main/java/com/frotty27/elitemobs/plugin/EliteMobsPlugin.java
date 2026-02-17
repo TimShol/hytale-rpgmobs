@@ -1,23 +1,23 @@
 package com.frotty27.elitemobs.plugin;
 
-import java.nio.file.FileSystems;
-import java.nio.file.Path;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import com.frotty27.elitemobs.api.EliteMobsAPI;
 import com.frotty27.elitemobs.api.EliteMobsEventBus;
 import com.frotty27.elitemobs.api.IEliteMobsEventListener;
+import com.frotty27.elitemobs.api.events.EliteMobReconcileEvent;
+import com.frotty27.elitemobs.api.events.EliteMobSpawnedEvent;
 import com.frotty27.elitemobs.api.query.EliteMobsQueryAPI;
 import com.frotty27.elitemobs.assets.EliteMobsAssetGenerator;
 import com.frotty27.elitemobs.assets.EliteMobsAssetRetriever;
 import com.frotty27.elitemobs.commands.EliteMobsRootCommand;
 import com.frotty27.elitemobs.components.EliteMobsTierComponent;
+import com.frotty27.elitemobs.components.ability.ChargeLeapAbilityComponent;
+import com.frotty27.elitemobs.components.ability.EliteMobsAbilityLockComponent;
+import com.frotty27.elitemobs.components.ability.HealLeapAbilityComponent;
+import com.frotty27.elitemobs.components.ability.SummonUndeadAbilityComponent;
 import com.frotty27.elitemobs.components.combat.EliteMobsCombatTrackingComponent;
 import com.frotty27.elitemobs.components.effects.EliteMobsActiveEffectsComponent;
-import com.frotty27.elitemobs.components.lifecycle.EliteMobsMigrationComponent;
-import com.frotty27.elitemobs.components.ability.EliteMobsAbilityLockComponent;
 import com.frotty27.elitemobs.components.lifecycle.EliteMobsHealthScalingComponent;
+import com.frotty27.elitemobs.components.lifecycle.EliteMobsMigrationComponent;
 import com.frotty27.elitemobs.components.lifecycle.EliteMobsModelScalingComponent;
 import com.frotty27.elitemobs.components.progression.EliteMobsProgressionComponent;
 import com.frotty27.elitemobs.components.summon.EliteMobsSummonMinionTrackingComponent;
@@ -26,14 +26,24 @@ import com.frotty27.elitemobs.components.summon.EliteMobsSummonedMinionComponent
 import com.frotty27.elitemobs.config.EliteMobsConfig;
 import com.frotty27.elitemobs.config.schema.YamlSerializer;
 import com.frotty27.elitemobs.features.EliteMobsFeatureRegistry;
+import com.frotty27.elitemobs.features.EliteMobsSpawningFeature;
 import com.frotty27.elitemobs.logs.EliteMobsLogger;
 import com.frotty27.elitemobs.nameplates.EliteMobsNameplateService;
-import com.frotty27.elitemobs.systems.ability.SummonRiseTracker;
+import com.frotty27.elitemobs.systems.ability.EliteMobsAbilityTriggerListener;
+import com.frotty27.elitemobs.systems.combat.EliteMobsAITargetPollingSystem;
+import com.frotty27.elitemobs.systems.combat.EliteMobsCombatStateSystem;
+import com.frotty27.elitemobs.systems.death.EliteMobsVanillaDropsCullZoneManager;
+import com.frotty27.elitemobs.systems.drops.EliteMobsExtraDropsScheduler;
 import com.frotty27.elitemobs.systems.migration.EliteMobsComponentMigrationSystem;
 import com.frotty27.elitemobs.systems.spawn.EliteMobsSpawnSystem;
+import com.frotty27.elitemobs.systems.visual.HealthScalingSystem;
+import com.frotty27.elitemobs.systems.visual.ModelScalingSystem;
+import com.frotty27.elitemobs.utils.StoreHelpers;
 import com.frotty27.elitemobs.utils.TickClock;
 import com.hypixel.hytale.assetstore.AssetPack;
 import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.asset.AssetModule;
@@ -45,6 +55,13 @@ import com.hypixel.hytale.server.core.modules.entity.damage.DeathSystems;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.npc.entities.NPCEntity;
+
+import java.nio.file.FileSystems;
+import java.nio.file.Path;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class EliteMobsPlugin extends JavaPlugin {
 
@@ -52,35 +69,33 @@ public final class EliteMobsPlugin extends JavaPlugin {
     private static final String ASSET_PACK_NAME = "EliteMobsGenerated";
     private EliteMobsConfig config;
 
-    private ComponentType<EntityStore, EliteMobsTierComponent> eliteMobsComponent;
-    private ComponentType<EntityStore, EliteMobsProgressionComponent> progressionComponent;
-    private ComponentType<EntityStore, EliteMobsHealthScalingComponent> healthScalingComponent;
-    private ComponentType<EntityStore, EliteMobsModelScalingComponent> modelScalingComponent;
-    private ComponentType<EntityStore, EliteMobsActiveEffectsComponent> activeEffectsComponent;
-    private ComponentType<EntityStore, EliteMobsCombatTrackingComponent> combatTrackingComponent;
-    private ComponentType<EntityStore, EliteMobsMigrationComponent> migrationComponent;
-    private ComponentType<EntityStore, EliteMobsSummonedMinionComponent> summonedMinionComponent;
-    private ComponentType<EntityStore, EliteMobsSummonMinionTrackingComponent> summonMinionTrackingComponent;
-    private ComponentType<EntityStore, EliteMobsSummonRiseComponent> summonRiseComponent;
-
-    private ComponentType<EntityStore, com.frotty27.elitemobs.components.ability.ChargeLeapAbilityComponent> chargeLeapAbilityComponent;
-    private ComponentType<EntityStore, com.frotty27.elitemobs.components.ability.HealLeapAbilityComponent> healLeapAbilityComponent;
-    private ComponentType<EntityStore, com.frotty27.elitemobs.components.ability.SummonUndeadAbilityComponent> summonUndeadAbilityComponent;
-    private ComponentType<EntityStore, EliteMobsAbilityLockComponent> abilityLockComponent;
+    private ComponentType<EntityStore, EliteMobsTierComponent> eliteMobsComponentType;
+    private ComponentType<EntityStore, EliteMobsProgressionComponent> progressionComponentType;
+    private ComponentType<EntityStore, EliteMobsHealthScalingComponent> healthScalingComponentType;
+    private ComponentType<EntityStore, EliteMobsModelScalingComponent> modelScalingComponentType;
+    private ComponentType<EntityStore, EliteMobsActiveEffectsComponent> activeEffectsComponentType;
+    private ComponentType<EntityStore, EliteMobsCombatTrackingComponent> combatTrackingComponentType;
+    private ComponentType<EntityStore, EliteMobsMigrationComponent> migrationComponentType;
+    private ComponentType<EntityStore, EliteMobsSummonedMinionComponent> summonedMinionComponentType;
+    private ComponentType<EntityStore, EliteMobsSummonMinionTrackingComponent> summonMinionTrackingComponentType;
+    private ComponentType<EntityStore, EliteMobsSummonRiseComponent> summonRiseComponentType;
+    private ComponentType<EntityStore, ChargeLeapAbilityComponent> chargeLeapAbilityComponentType;
+    private ComponentType<EntityStore, HealLeapAbilityComponent> healLeapAbilityComponentType;
+    private ComponentType<EntityStore, SummonUndeadAbilityComponent> summonUndeadAbilityComponentType;
+    private ComponentType<EntityStore, EliteMobsAbilityLockComponent> abilityLockComponentType;
 
     private final TickClock tickClock = new TickClock();
-    private final com.frotty27.elitemobs.systems.death.EliteMobsVanillaDropsCullZoneManager cullZoneManager = new com.frotty27.elitemobs.systems.death.EliteMobsVanillaDropsCullZoneManager(tickClock);
-    private final com.frotty27.elitemobs.systems.drops.EliteMobsExtraDropsScheduler dropsScheduler = new com.frotty27.elitemobs.systems.drops.EliteMobsExtraDropsScheduler(tickClock);
+    private final EliteMobsVanillaDropsCullZoneManager cullZoneManager = new EliteMobsVanillaDropsCullZoneManager(
+            tickClock);
+    private final EliteMobsExtraDropsScheduler dropsScheduler = new EliteMobsExtraDropsScheduler(tickClock);
     private final EliteMobsNameplateService nameplateService = new EliteMobsNameplateService();
     private final EliteMobsAssetRetriever eliteMobsAssetRetriever = new EliteMobsAssetRetriever(this);
     private final EliteMobsFeatureRegistry featureRegistry = new EliteMobsFeatureRegistry(this);
-    private final SummonRiseTracker summonRiseTracker = new SummonRiseTracker();
     private final EliteMobsEventBus eventBus = new EliteMobsEventBus();
 
-
-    private com.frotty27.elitemobs.systems.visual.HealthScalingSystem healthScalingSystem;
-    private com.frotty27.elitemobs.systems.visual.ModelScalingSystem modelScalingSystem;
-    private com.frotty27.elitemobs.systems.ability.EliteMobsAbilityTriggerListener abilityTriggerListener;
+    private HealthScalingSystem healthScalingSystem;
+    private ModelScalingSystem modelScalingSystem;
+    private EliteMobsAbilityTriggerListener abilityTriggerListener;
 
     private final AtomicBoolean reconcileRequested = new AtomicBoolean(false);
     private final AtomicInteger reconcileTicksRemaining = new AtomicInteger(0);
@@ -104,7 +119,7 @@ public final class EliteMobsPlugin extends JavaPlugin {
 
         registerComponents();
 
-        abilityTriggerListener = new com.frotty27.elitemobs.systems.ability.EliteMobsAbilityTriggerListener(this);
+        abilityTriggerListener = new EliteMobsAbilityTriggerListener(this);
 
         registerSystems();
         registerCommands();
@@ -116,7 +131,7 @@ public final class EliteMobsPlugin extends JavaPlugin {
     private void registerEventListeners() {
         eventBus.registerListener(new IEliteMobsEventListener() {
             @Override
-            public void onEliteMobSpawned(com.frotty27.elitemobs.api.event.EliteMobSpawnedEvent event) {
+            public void onEliteMobSpawned(EliteMobSpawnedEvent event) {
                 if (event.isCancelled()) {
                     LOGGER.atInfo().log("[SpawnEvent] Spawn event cancelled, skipping health scaling");
                     return;
@@ -126,24 +141,26 @@ public final class EliteMobsPlugin extends JavaPlugin {
                         event.getTier(), healthScalingSystem != null, modelScalingSystem != null);
 
                 if (healthScalingSystem != null) {
-                    com.hypixel.hytale.component.Ref<EntityStore> npcRef = event.getEntityRef();
-                    com.hypixel.hytale.component.Store<EntityStore> store = npcRef.getStore();
+                    Ref<EntityStore> npcRef = event.getEntityRef();
+                    Store<EntityStore> store = npcRef.getStore();
 
-                    com.hypixel.hytale.server.npc.entities.NPCEntity npcEntity = store.getComponent(npcRef, com.hypixel.hytale.server.npc.entities.NPCEntity.getComponentType());
+                    NPCEntity npcEntity = store.getComponent(npcRef,
+                                                             Objects.requireNonNull(NPCEntity.getComponentType())
+                    );
                     LOGGER.atInfo().log("[SpawnEvent] npcEntity=%b world=%b",
                             npcEntity != null, npcEntity != null && npcEntity.getWorld() != null);
 
                     if (npcEntity != null && npcEntity.getWorld() != null) {
                         npcEntity.getWorld().execute(() -> {
                             LOGGER.atInfo().log("[SpawnEvent] Deferred callback executing");
-                            com.hypixel.hytale.server.core.universe.world.storage.EntityStore entityStoreProvider = npcEntity.getWorld().getEntityStore();
+                            EntityStore entityStoreProvider = npcEntity.getWorld().getEntityStore();
                             if (entityStoreProvider == null) {
                                 LOGGER.atInfo().log("[SpawnEvent] entityStoreProvider is null!");
                                 return;
                             }
-                            com.hypixel.hytale.component.Store<EntityStore> entityStore = entityStoreProvider.getStore();
+                            Store<EntityStore> entityStore = entityStoreProvider.getStore();
 
-                            com.frotty27.elitemobs.utils.StoreHelpers.withEntity(entityStore, npcRef, (chunk, commandBuffer, index) -> {
+                            StoreHelpers.withEntity(entityStore, npcRef, (_, commandBuffer, _) -> {
                                 LOGGER.atInfo().log("[SpawnEvent] Inside withEntity - applying scaling");
 
                                 if (healthScalingSystem != null) {
@@ -213,7 +230,7 @@ public final class EliteMobsPlugin extends JavaPlugin {
         }
 
         try {
-            assetModule.registerPack(ASSET_PACK_NAME, eliteMobsDir, getManifest());
+            assetModule.registerPack(ASSET_PACK_NAME, eliteMobsDir, getManifest(), true);
             LOGGER.atInfo().log("[EliteMobs] Reloaded config & regenerated assets successfully!");
             reloadNpcRoleAssetsIfPossible();
         } catch (Throwable error) {
@@ -261,98 +278,95 @@ public final class EliteMobsPlugin extends JavaPlugin {
 
     private void registerComponents() {
 
-        eliteMobsComponent = getEntityStoreRegistry().registerComponent(
+        eliteMobsComponentType = getEntityStoreRegistry().registerComponent(
                 EliteMobsTierComponent.class,
                 "EliteMobsTierComponent",
                 EliteMobsTierComponent.CODEC
         );
         LOGGER.atInfo().log("[1/14] Registered EliteMobsTierComponent");
 
-        progressionComponent = getEntityStoreRegistry().registerComponent(
+        progressionComponentType = getEntityStoreRegistry().registerComponent(
                 EliteMobsProgressionComponent.class,
                 "EliteMobsProgressionComponent",
                 EliteMobsProgressionComponent.CODEC
         );
         LOGGER.atInfo().log("[2/14] Registered EliteMobsProgressionComponent");
 
-        healthScalingComponent = getEntityStoreRegistry().registerComponent(
+        healthScalingComponentType = getEntityStoreRegistry().registerComponent(
                 EliteMobsHealthScalingComponent.class,
                 "EliteMobsHealthScalingComponent",
                 EliteMobsHealthScalingComponent.CODEC
         );
         LOGGER.atInfo().log("[3/14] Registered EliteMobsHealthScalingComponent");
 
-        modelScalingComponent = getEntityStoreRegistry().registerComponent(
+        modelScalingComponentType = getEntityStoreRegistry().registerComponent(
                 EliteMobsModelScalingComponent.class,
                 "EliteMobsModelScalingComponent",
                 EliteMobsModelScalingComponent.CODEC
         );
         LOGGER.atInfo().log("[4/14] Registered EliteMobsModelScalingComponent");
 
-        activeEffectsComponent = getEntityStoreRegistry().registerComponent(
+        activeEffectsComponentType = getEntityStoreRegistry().registerComponent(
                 EliteMobsActiveEffectsComponent.class,
                 "EliteMobsActiveEffectsComponent",
                 EliteMobsActiveEffectsComponent.CODEC
         );
         LOGGER.atInfo().log("[5/14] Registered EliteMobsActiveEffectsComponent");
 
-        combatTrackingComponent = getEntityStoreRegistry().registerComponent(
+        combatTrackingComponentType = getEntityStoreRegistry().registerComponent(
                 EliteMobsCombatTrackingComponent.class,
                 "EliteMobsCombatTrackingComponent",
                 EliteMobsCombatTrackingComponent.CODEC
         );
         LOGGER.atInfo().log("[6/14] Registered EliteMobsCombatTrackingComponent (with marker-based aggro)");
 
-        migrationComponent = getEntityStoreRegistry().registerComponent(
+        migrationComponentType = getEntityStoreRegistry().registerComponent(
                 EliteMobsMigrationComponent.class,
                 "EliteMobsMigrationComponent",
                 EliteMobsMigrationComponent.CODEC
         );
         LOGGER.atInfo().log("[7/14] Registered EliteMobsMigrationComponent (temporary)");
 
-        summonedMinionComponent = getEntityStoreRegistry().registerComponent(
+        summonedMinionComponentType = getEntityStoreRegistry().registerComponent(
                 EliteMobsSummonedMinionComponent.class,
                 "EliteMobsSummonedMinionComponent",
                 EliteMobsSummonedMinionComponent.CODEC
         );
         LOGGER.atInfo().log("[8/14] Registered EliteMobsSummonedMinionComponent");
 
-        summonMinionTrackingComponent = getEntityStoreRegistry().registerComponent(
+        summonMinionTrackingComponentType = getEntityStoreRegistry().registerComponent(
                 EliteMobsSummonMinionTrackingComponent.class,
                 "EliteMobsSummonMinionTrackingComponent",
                 EliteMobsSummonMinionTrackingComponent.CODEC
         );
         LOGGER.atInfo().log("[9/14] Registered EliteMobsSummonMinionTrackingComponent");
 
-        summonRiseComponent = getEntityStoreRegistry().registerComponent(
+        summonRiseComponentType = getEntityStoreRegistry().registerComponent(
                 EliteMobsSummonRiseComponent.class,
                 "EliteMobsSummonRiseComponent",
                 EliteMobsSummonRiseComponent.CODEC
         );
         LOGGER.atInfo().log("[10/14] Registered EliteMobsSummonRiseComponent");
 
-        chargeLeapAbilityComponent = getEntityStoreRegistry().registerComponent(
-                com.frotty27.elitemobs.components.ability.ChargeLeapAbilityComponent.class,
-                "ChargeLeapAbilityComponent",
-                com.frotty27.elitemobs.components.ability.ChargeLeapAbilityComponent.CODEC
+        chargeLeapAbilityComponentType = getEntityStoreRegistry().registerComponent(ChargeLeapAbilityComponent.class,
+                                                                                    "ChargeLeapAbilityComponent",
+                                                                                    ChargeLeapAbilityComponent.CODEC
         );
         LOGGER.atInfo().log("[11/14] Registered ChargeLeapAbilityComponent (unified: enabled + cooldown)");
 
-        healLeapAbilityComponent = getEntityStoreRegistry().registerComponent(
-                com.frotty27.elitemobs.components.ability.HealLeapAbilityComponent.class,
-                "HealLeapAbilityComponent",
-                com.frotty27.elitemobs.components.ability.HealLeapAbilityComponent.CODEC
+        healLeapAbilityComponentType = getEntityStoreRegistry().registerComponent(HealLeapAbilityComponent.class,
+                                                                                  "HealLeapAbilityComponent",
+                                                                                  HealLeapAbilityComponent.CODEC
         );
         LOGGER.atInfo().log("[12/14] Registered HealLeapAbilityComponent (unified: replaces 5 components)");
 
-        summonUndeadAbilityComponent = getEntityStoreRegistry().registerComponent(
-                com.frotty27.elitemobs.components.ability.SummonUndeadAbilityComponent.class,
-                "SummonUndeadAbilityComponent",
-                com.frotty27.elitemobs.components.ability.SummonUndeadAbilityComponent.CODEC
+        summonUndeadAbilityComponentType = getEntityStoreRegistry().registerComponent(SummonUndeadAbilityComponent.class,
+                                                                                      "SummonUndeadAbilityComponent",
+                                                                                      SummonUndeadAbilityComponent.CODEC
         );
         LOGGER.atInfo().log("[13/14] Registered SummonUndeadAbilityComponent (unified: replaces 4 components)");
 
-        abilityLockComponent = getEntityStoreRegistry().registerComponent(
+        abilityLockComponentType = getEntityStoreRegistry().registerComponent(
                 EliteMobsAbilityLockComponent.class,
                 "EliteMobsAbilityLockComponent",
                 EliteMobsAbilityLockComponent.CODEC
@@ -382,8 +396,8 @@ public final class EliteMobsPlugin extends JavaPlugin {
         registerSystem(new EliteMobsComponentMigrationSystem(this));
         LOGGER.atInfo().log("Registered Migration System.");
 
-        registerSystem(new com.frotty27.elitemobs.systems.combat.EliteMobsCombatStateSystem(this));
-        registerSystem(new com.frotty27.elitemobs.systems.combat.EliteMobsAITargetPollingSystem(this));
+        registerSystem(new EliteMobsCombatStateSystem(this));
+        registerSystem(new EliteMobsAITargetPollingSystem(this));
         LOGGER.atInfo().log("Registered Combat State Systems (event-driven + AI polling).");
 
         featureRegistry.registerSystems(this);
@@ -395,11 +409,11 @@ public final class EliteMobsPlugin extends JavaPlugin {
         LOGGER.atInfo().log("Registered EliteMobs commands.");
     }
 
-    public com.frotty27.elitemobs.systems.death.EliteMobsVanillaDropsCullZoneManager getMobDropsCleanupManager() {
+    public EliteMobsVanillaDropsCullZoneManager getMobDropsCleanupManager() {
         return cullZoneManager;
     }
 
-    public com.frotty27.elitemobs.systems.drops.EliteMobsExtraDropsScheduler getExtraDropsScheduler() {
+    public EliteMobsExtraDropsScheduler getExtraDropsScheduler() {
         return dropsScheduler;
     }
 
@@ -411,83 +425,79 @@ public final class EliteMobsPlugin extends JavaPlugin {
         return tickClock;
     }
 
-    public SummonRiseTracker getSummonRiseTracker() {
-        return summonRiseTracker;
+    public ComponentType<EntityStore, EliteMobsTierComponent> getEliteMobsComponentType() {
+        return eliteMobsComponentType;
     }
 
-    public ComponentType<EntityStore, EliteMobsTierComponent> getEliteMobsComponent() {
-        return eliteMobsComponent;
+    public ComponentType<EntityStore, EliteMobsProgressionComponent> getProgressionComponentType() {
+        return progressionComponentType;
     }
 
-    public ComponentType<EntityStore, EliteMobsProgressionComponent> getProgressionComponent() {
-        return progressionComponent;
+    public ComponentType<EntityStore, EliteMobsHealthScalingComponent> getHealthScalingComponentType() {
+        return healthScalingComponentType;
     }
 
-    public ComponentType<EntityStore, EliteMobsHealthScalingComponent> getHealthScalingComponent() {
-        return healthScalingComponent;
+    public ComponentType<EntityStore, EliteMobsModelScalingComponent> getModelScalingComponentType() {
+        return modelScalingComponentType;
     }
 
-    public ComponentType<EntityStore, EliteMobsModelScalingComponent> getModelScalingComponent() {
-        return modelScalingComponent;
+    public ComponentType<EntityStore, EliteMobsActiveEffectsComponent> getActiveEffectsComponentType() {
+        return activeEffectsComponentType;
     }
 
-    public ComponentType<EntityStore, EliteMobsActiveEffectsComponent> getActiveEffectsComponent() {
-        return activeEffectsComponent;
+    public ComponentType<EntityStore, EliteMobsCombatTrackingComponent> getCombatTrackingComponentType() {
+        return combatTrackingComponentType;
     }
 
-    public ComponentType<EntityStore, EliteMobsCombatTrackingComponent> getCombatTrackingComponent() {
-        return combatTrackingComponent;
+    public ComponentType<EntityStore, EliteMobsMigrationComponent> getMigrationComponentType() {
+        return migrationComponentType;
     }
 
-    public ComponentType<EntityStore, EliteMobsMigrationComponent> getMigrationComponent() {
-        return migrationComponent;
+    public ComponentType<EntityStore, EliteMobsSummonedMinionComponent> getSummonedMinionComponentType() {
+        return summonedMinionComponentType;
     }
 
-    public ComponentType<EntityStore, EliteMobsSummonedMinionComponent> getSummonedMinionComponent() {
-        return summonedMinionComponent;
+    public ComponentType<EntityStore, EliteMobsSummonMinionTrackingComponent> getSummonMinionTrackingComponentType() {
+        return summonMinionTrackingComponentType;
     }
 
-    public ComponentType<EntityStore, EliteMobsSummonMinionTrackingComponent> getSummonMinionTrackingComponent() {
-        return summonMinionTrackingComponent;
+    public ComponentType<EntityStore, EliteMobsSummonRiseComponent> getSummonRiseComponentType() {
+        return summonRiseComponentType;
     }
 
-    public ComponentType<EntityStore, EliteMobsSummonRiseComponent> getSummonRiseComponent() {
-        return summonRiseComponent;
+    public ComponentType<EntityStore, ChargeLeapAbilityComponent> getChargeLeapAbilityComponentType() {
+        return chargeLeapAbilityComponentType;
     }
 
-    public ComponentType<EntityStore, com.frotty27.elitemobs.components.ability.ChargeLeapAbilityComponent> getChargeLeapAbilityComponent() {
-        return chargeLeapAbilityComponent;
+    public ComponentType<EntityStore, HealLeapAbilityComponent> getHealLeapAbilityComponentType() {
+        return healLeapAbilityComponentType;
     }
 
-    public ComponentType<EntityStore, com.frotty27.elitemobs.components.ability.HealLeapAbilityComponent> getHealLeapAbilityComponent() {
-        return healLeapAbilityComponent;
+    public ComponentType<EntityStore, SummonUndeadAbilityComponent> getSummonUndeadAbilityComponentType() {
+        return summonUndeadAbilityComponentType;
     }
 
-    public ComponentType<EntityStore, com.frotty27.elitemobs.components.ability.SummonUndeadAbilityComponent> getSummonUndeadAbilityComponent() {
-        return summonUndeadAbilityComponent;
+    public ComponentType<EntityStore, EliteMobsAbilityLockComponent> getAbilityLockComponentType() {
+        return abilityLockComponentType;
     }
 
-    public ComponentType<EntityStore, EliteMobsAbilityLockComponent> getAbilityLockComponent() {
-        return abilityLockComponent;
-    }
-
-    public com.frotty27.elitemobs.systems.ability.EliteMobsAbilityTriggerListener getAbilityTriggerListener() {
+    public EliteMobsAbilityTriggerListener getAbilityTriggerListener() {
         return abilityTriggerListener;
     }
 
-    public com.frotty27.elitemobs.systems.visual.HealthScalingSystem getHealthScalingSystem() {
+    public HealthScalingSystem getHealthScalingSystem() {
         return healthScalingSystem;
     }
 
-    public void setHealthScalingSystem(com.frotty27.elitemobs.systems.visual.HealthScalingSystem system) {
+    public void setHealthScalingSystem(HealthScalingSystem system) {
         this.healthScalingSystem = system;
     }
 
-    public com.frotty27.elitemobs.systems.visual.ModelScalingSystem getModelScalingSystem() {
+    public ModelScalingSystem getModelScalingSystem() {
         return modelScalingSystem;
     }
 
-    public void setModelScalingSystem(com.frotty27.elitemobs.systems.visual.ModelScalingSystem system) {
+    public void setModelScalingSystem(ModelScalingSystem system) {
         this.modelScalingSystem = system;
     }
 
@@ -496,7 +506,7 @@ public final class EliteMobsPlugin extends JavaPlugin {
     }
 
     public EliteMobsSpawnSystem getSpawnSystem() {
-        com.frotty27.elitemobs.features.EliteMobsSpawningFeature spawning = (com.frotty27.elitemobs.features.EliteMobsSpawningFeature) featureRegistry.getFeature("Spawning");
+        EliteMobsSpawningFeature spawning = (EliteMobsSpawningFeature) featureRegistry.getFeature("Spawning");
         return spawning != null ? spawning.getSpawnSystem() : null;
     }
 
@@ -529,7 +539,7 @@ public final class EliteMobsPlugin extends JavaPlugin {
             reconcileTicksRemaining.set(windowTicks);
             reconcileActive = windowTicks > 0;
             if (windowTicks > 0) {
-                eventBus.fire(new com.frotty27.elitemobs.api.event.EliteMobReconcileEvent());
+                eventBus.fire(new EliteMobReconcileEvent());
             }
             if (cfg.reconcileConfig.announceReconcile) {
                 if (windowTicks > 0) {

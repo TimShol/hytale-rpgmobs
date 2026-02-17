@@ -1,10 +1,17 @@
 package com.frotty27.elitemobs.systems.spawn;
 
-import java.util.*;
-
-import com.frotty27.elitemobs.assets.AssetConfigHelpers;
-import com.frotty27.elitemobs.assets.AssetType;
+import com.frotty27.elitemobs.api.events.EliteMobSpawnedEvent;
 import com.frotty27.elitemobs.components.EliteMobsTierComponent;
+import com.frotty27.elitemobs.components.ability.ChargeLeapAbilityComponent;
+import com.frotty27.elitemobs.components.ability.EliteMobsAbilityLockComponent;
+import com.frotty27.elitemobs.components.ability.HealLeapAbilityComponent;
+import com.frotty27.elitemobs.components.ability.SummonUndeadAbilityComponent;
+import com.frotty27.elitemobs.components.combat.EliteMobsCombatTrackingComponent;
+import com.frotty27.elitemobs.components.effects.EliteMobsActiveEffectsComponent;
+import com.frotty27.elitemobs.components.lifecycle.EliteMobsHealthScalingComponent;
+import com.frotty27.elitemobs.components.lifecycle.EliteMobsMigrationComponent;
+import com.frotty27.elitemobs.components.lifecycle.EliteMobsModelScalingComponent;
+import com.frotty27.elitemobs.components.progression.EliteMobsProgressionComponent;
 import com.frotty27.elitemobs.components.summon.EliteMobsSummonMinionTrackingComponent;
 import com.frotty27.elitemobs.components.summon.EliteMobsSummonRiseComponent;
 import com.frotty27.elitemobs.components.summon.EliteMobsSummonedMinionComponent;
@@ -20,7 +27,6 @@ import com.frotty27.elitemobs.features.EliteMobsFeatureRegistry;
 import com.frotty27.elitemobs.logs.EliteMobsLogLevel;
 import com.frotty27.elitemobs.logs.EliteMobsLogger;
 import com.frotty27.elitemobs.plugin.EliteMobsPlugin;
-import com.frotty27.elitemobs.rules.AbilityGateEvaluator;
 import com.frotty27.elitemobs.rules.MobRuleMatcher;
 import com.frotty27.elitemobs.utils.AbilityHelpers;
 import com.frotty27.elitemobs.utils.Constants;
@@ -36,17 +42,24 @@ import com.hypixel.hytale.protocol.InteractionType;
 import com.hypixel.hytale.server.core.asset.type.environment.config.Environment;
 import com.hypixel.hytale.server.core.entity.UUIDComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
+import com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent;
+import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
+import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
+import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
+import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
 import com.hypixel.hytale.server.core.modules.physics.component.Velocity;
-import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.ParticleUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.flock.FlockMembershipSystems;
+import com.hypixel.hytale.server.flock.FlockPlugin;
 import com.hypixel.hytale.server.flock.config.FlockAsset;
 import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import org.jspecify.annotations.NonNull;
 
-import static com.frotty27.elitemobs.features.EliteMobsHealLeapAbilityFeature.ABILITY_HEAL_LEAP;
+import java.util.*;
+
 import static com.frotty27.elitemobs.features.EliteMobsUndeadSummonAbilityFeature.ABILITY_UNDEAD_SUMMON;
-import static com.frotty27.elitemobs.utils.ClampingHelpers.clamp01;
 import static com.frotty27.elitemobs.utils.ClampingHelpers.clampTierIndex;
 
 public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore> {
@@ -58,8 +71,19 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
     private static final double SUMMON_SPAWN_RADIUS = 6.0;
     private static final int SUMMON_MIN_COUNT = 3;
     private static final int SUMMON_MAX_COUNT = 7;
-    private static final long MINION_CHAIN_TICKS = Math.max(1L, Constants.TICKS_PER_SECOND / 3);
     private static final InteractionType HEAL_INTERACTION_TYPE = InteractionType.Ability2;
+    /**
+     * Ticks between each minion death in the chain reaction (~3 per second at 20 TPS).
+     */
+    private static final long CHAIN_DEATH_STAGGER_TICKS = Constants.TICKS_PER_SECOND / 3;
+    /**
+     * Modifier key used to zero out health for chain-death kills.
+     */
+    private static final String CHAIN_DEATH_HEALTH_MODIFIER_KEY = "elitemobs_chain_death";
+    /**
+     * Particle system spawned as a one-shot burst when a minion chain-dies.
+     */
+    private static final String CHAIN_DEATH_PARTICLE = "Explosion_Medium";
 
     private static final ComponentType<EntityStore, Velocity> VELOCITY_COMPONENT_TYPE = Velocity.getComponentType();
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_COMPONENT_TYPE = TransformComponent.getComponentType();
@@ -75,11 +99,19 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
     private long mobsSeenCount;
     private long mobsMatchedCount;
     private long mobsAppliedCount;
-    private long lastMinionCleanupTick = -1;
     private final Object minionRemovalLock = new Object();
-    private final List<PendingMinionRemoval> pendingMinionRemovals = new ArrayList<>();
+    private final List<PendingSummonerDeath> pendingSummonerDeaths = new ArrayList<>();
 
-    private record PendingMinionRemoval(Ref<EntityStore> minionRef, UUID summonerId, long scheduledTick) {
+    private static final class PendingSummonerDeath {
+        final UUID summonerId;
+        final long deathTick;
+        int assignedCount;
+
+        PendingSummonerDeath(UUID summonerId, long deathTick) {
+            this.summonerId = summonerId;
+            this.deathTick = deathTick;
+            this.assignedCount = 0;
+        }
     }
 
     public EliteMobsSpawnSystem(EliteMobsPlugin eliteMobsPlugin) {
@@ -96,7 +128,9 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
     public void tick(float deltaTimeSeconds, int entityIndex, @NonNull ArchetypeChunk<EntityStore> archetypeChunk,
                      @NonNull Store<EntityStore> entityStore, @NonNull CommandBuffer<EntityStore> commandBuffer) {
         try {
-            NPCEntity npc = archetypeChunk.getComponent(entityIndex, NPCEntity.getComponentType());
+            NPCEntity npc = archetypeChunk.getComponent(entityIndex,
+                                                        Objects.requireNonNull(NPCEntity.getComponentType())
+            );
             if (npc == null) {
                 throw new EntityComponentException("NPCEntity", entityIndex);
             }
@@ -108,7 +142,7 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
         }
     }
 
-    void processTick(float deltaTimeSeconds, int entityIndex, @NonNull ArchetypeChunk<EntityStore> archetypeChunk,
+    void processTick(int entityIndex, @NonNull ArchetypeChunk<EntityStore> archetypeChunk,
                      @NonNull Store<EntityStore> entityStore, @NonNull CommandBuffer<EntityStore> commandBuffer) {
 
         EliteMobsConfig config = eliteMobsPlugin.getConfig();
@@ -124,11 +158,10 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
             return;
         }
 
-        World world = npcEntity.getWorld();
-        if (world != null) {
-            long currentTick = eliteMobsPlugin.getTickClock().getTick();
-            processPendingMinionRemovals(currentTick, world);
-        }
+        long currentTick = eliteMobsPlugin.getTickClock().getTick();
+
+        checkMinionOfDeadSummoner(npcRef, entityStore, commandBuffer, currentTick);
+        clearProcessedSummonerDeaths(currentTick);
 
         if (applySummonRiseIfNeeded(npcEntity, npcRef, entityStore, commandBuffer)) {
             logNpcScanSummaryIfDue(config);
@@ -136,10 +169,10 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
         }
 
         EliteMobsSummonedMinionComponent minionComponent = entityStore.getComponent(npcRef,
-                                                                                    eliteMobsPlugin.getSummonedMinionComponent()
+                                                                                    eliteMobsPlugin.getSummonedMinionComponentType()
         );
         EliteMobsTierComponent existingTierComponent = entityStore.getComponent(npcRef,
-                                                                                eliteMobsPlugin.getEliteMobsComponent()
+                                                                                eliteMobsPlugin.getEliteMobsComponentType()
         );
 
         if (minionComponent != null && (existingTierComponent == null || existingTierComponent.tierIndex < 0 || existingTierComponent.tierIndex > 1)) {
@@ -151,11 +184,9 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
                                                                npcRef,
                                                                entityStore,
                                                                commandBuffer,
-                                                               npcEntity,
-                                                               tierIndex,
-                                                               true
+                                                               npcEntity, tierIndex, true
             );
-            commandBuffer.replaceComponent(npcRef, eliteMobsPlugin.getSummonedMinionComponent(), minionComponent);
+            commandBuffer.replaceComponent(npcRef, eliteMobsPlugin.getSummonedMinionComponentType(), minionComponent);
             logNpcScanSummaryIfDue(config);
             return;
         }
@@ -200,21 +231,20 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
         EliteMobsTierComponent newTierComponent = new EliteMobsTierComponent();
         newTierComponent.tierIndex = tierIndex;
 
-
         equipmentService.buildAndApply(npcEntity, config, tierIndex, matchResult.mobRule());
 
-
         TransformComponent spawnTransform = entityStore.getComponent(npcRef, TransformComponent.getComponentType());
-        var spawnedEvent = new com.frotty27.elitemobs.api.event.EliteMobSpawnedEvent(
-                npcRef, tierIndex, roleName,
-                spawnTransform != null ? spawnTransform.getPosition().clone() : new com.hypixel.hytale.math.vector.Vector3d());
+        var spawnedEvent = new EliteMobSpawnedEvent(npcRef,
+                                                    tierIndex,
+                                                    roleName,
+                                                    spawnTransform != null ? spawnTransform.getPosition().clone() : new Vector3d()
+        );
         eliteMobsPlugin.getEventBus().fire(spawnedEvent);
         if (spawnedEvent.isCancelled()) return;
 
-        commandBuffer.putComponent(npcRef, eliteMobsPlugin.getEliteMobsComponent(), newTierComponent);
+        commandBuffer.putComponent(npcRef, eliteMobsPlugin.getEliteMobsComponentType(), newTierComponent);
 
-
-        createNewSchemaComponents(config, npcRef, commandBuffer, tierIndex, npcEntity, false);
+        createNewSchemaComponents(config, npcRef, commandBuffer, npcEntity, false);
         featureRegistry.applyAll(eliteMobsPlugin,
                                  config,
                                  npcRef,
@@ -246,7 +276,7 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
         if (roleName == null || roleName.isBlank()) return false;
         boolean summonRole = roleName.startsWith(EliteMobsConfig.SUMMON_ROLE_PREFIX);
         EliteMobsSummonedMinionComponent minionComponent = entityStore.getComponent(npcRef,
-                                                                                    eliteMobsPlugin.getSummonedMinionComponent()
+                                                                                    eliteMobsPlugin.getSummonedMinionComponentType()
         );
         boolean trackedSummon = summonRole || minionComponent != null;
         if (!trackedSummon) return false;
@@ -254,9 +284,9 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
         TransformComponent transform = entityStore.getComponent(npcRef, TRANSFORM_COMPONENT_TYPE);
 
         EliteMobsSummonRiseComponent riseComponent = entityStore.getComponent(npcRef,
-                                                                              eliteMobsPlugin.getSummonRiseComponent()
+                                                                              eliteMobsPlugin.getSummonRiseComponentType()
         );
-        if (riseComponent != null && riseComponent.applied) return true;
+        if (riseComponent != null && riseComponent.applied) return false;
 
         if (transform != null) {
             TransformComponent updated = transform.clone();
@@ -275,90 +305,112 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
 
         if (riseComponent == null) riseComponent = new EliteMobsSummonRiseComponent();
         riseComponent.applied = true;
-        commandBuffer.putComponent(npcRef, eliteMobsPlugin.getSummonRiseComponent(), riseComponent);
+        commandBuffer.putComponent(npcRef, eliteMobsPlugin.getSummonRiseComponentType(), riseComponent);
         return true;
     }
 
-    public void queueMinionChainDespawn(UUID summonerId, Store<EntityStore> entityStore, long startTick) {
-        if (summonerId == null || entityStore == null) return;
-        List<Ref<EntityStore>> minions = new ArrayList<>();
-        entityStore.forEachChunk((chunk, cb) -> {
-            for (int i = 0; i < chunk.size(); i++) {
-                Ref<EntityStore> ref = chunk.getReferenceTo(i);
-                EliteMobsSummonedMinionComponent minion = chunk.getComponent(i,
-                                                                             eliteMobsPlugin.getSummonedMinionComponent()
-                );
-                if (minion == null || minion.summonerId == null) continue;
-                if (!summonerId.equals(minion.summonerId)) continue;
-                minions.add(ref);
-            }
-            return false;
-        });
-        if (minions.isEmpty()) return;
-
-        long tick = startTick;
+    public void queueSummonerDeath(UUID summonerId, long deathTick) {
+        if (summonerId == null) return;
         synchronized (minionRemovalLock) {
-            for (Ref<EntityStore> ref : minions) {
-                pendingMinionRemovals.add(new PendingMinionRemoval(ref, summonerId, tick));
-                tick += MINION_CHAIN_TICKS;
-            }
+            pendingSummonerDeaths.add(new PendingSummonerDeath(summonerId, deathTick));
         }
     }
 
-    private void processPendingMinionRemovals(long currentTick, World world) {
-        if (currentTick == lastMinionCleanupTick) return;
-        lastMinionCleanupTick = currentTick;
-        List<PendingMinionRemoval> ready = new ArrayList<>();
+    void checkMinionOfDeadSummoner(Ref<EntityStore> npcRef, Store<EntityStore> store,
+                                   CommandBuffer<EntityStore> commandBuffer, long currentTick) {
         synchronized (minionRemovalLock) {
-            if (pendingMinionRemovals.isEmpty()) return;
-            for (int i = pendingMinionRemovals.size() - 1; i >= 0; i--) {
-                PendingMinionRemoval removal = pendingMinionRemovals.get(i);
-                if (removal.scheduledTick() <= currentTick) {
-                    ready.add(removal);
-                    pendingMinionRemovals.remove(i);
+            if (pendingSummonerDeaths.isEmpty()) return;
+        }
+        EliteMobsSummonedMinionComponent minion = store.getComponent(npcRef,
+                                                                     eliteMobsPlugin.getSummonedMinionComponentType()
+        );
+        if (minion == null || minion.summonerId == null) return;
+
+        // Already has DeathComponent — engine is handling death
+        DeathComponent existingDeath = store.getComponent(npcRef, DeathComponent.getComponentType());
+        if (existingDeath != null) return;
+
+        if (minion.chainDeathAtTick == -1L) {
+            // Already fired — waiting for engine to process death
+            return;
+        }
+
+        if (minion.chainDeathAtTick > 0) {
+            // Death already scheduled — check if it's time
+            if (currentTick >= minion.chainDeathAtTick) {
+                LOGGER.atInfo().log("[MinionDespawn] Chain-death firing: summoner=%s tick=%d",
+                                    minion.summonerId,
+                                    currentTick
+                );
+                spawnChainDeathExplosion(npcRef, store);
+                killMinionViaHealth(npcRef, store, commandBuffer);
+                minion.chainDeathAtTick = -1L;
+                commandBuffer.replaceComponent(npcRef, eliteMobsPlugin.getSummonedMinionComponentType(), minion);
+            }
+            return;
+        }
+
+        // Not yet scheduled — check if summoner is dead and assign staggered tick
+        synchronized (minionRemovalLock) {
+            for (PendingSummonerDeath death : pendingSummonerDeaths) {
+                if (death.summonerId.equals(minion.summonerId)) {
+                    long scheduledTick = death.deathTick + (death.assignedCount * CHAIN_DEATH_STAGGER_TICKS) + 1;
+                    death.assignedCount++;
+                    minion.chainDeathAtTick = scheduledTick;
+                    commandBuffer.replaceComponent(npcRef, eliteMobsPlugin.getSummonedMinionComponentType(), minion);
+                    LOGGER.atInfo().log("[MinionDespawn] Scheduled chain-death: summoner=%s atTick=%d (index=%d)",
+                                        minion.summonerId,
+                                        scheduledTick,
+                                        death.assignedCount - 1
+                    );
+                    return;
                 }
             }
         }
-        if (ready.isEmpty()) return;
+    }
 
-        for (PendingMinionRemoval removal : ready) {
-            scheduleMinionRemoval(removal, world);
+    void clearProcessedSummonerDeaths(long currentTick) {
+        synchronized (minionRemovalLock) {
+            pendingSummonerDeaths.removeIf(d -> currentTick - d.deathTick > Constants.TICKS_PER_SECOND * 5);
         }
     }
 
-    private void scheduleMinionRemoval(PendingMinionRemoval removal, World world) {
-        world.execute(() -> {
-            EntityStore entityStoreProvider = world.getEntityStore();
-            if (entityStoreProvider == null) return;
-            Store<EntityStore> store = entityStoreProvider.getStore();
-            StoreHelpers.withEntity(store, removal.minionRef(), (chunk, cb, index) -> {
-                                        EliteMobsSummonedMinionComponent minion = store.getComponent(removal.minionRef(),
-                                                                                                     eliteMobsPlugin.getSummonedMinionComponent()
-                                        );
-                                        if (minion == null || minion.summonerId == null) return;
-
-                                        Ref<EntityStore> summonerRef = world.getEntityRef(minion.summonerId);
-                                        if (summonerRef != null && summonerRef.isValid()) {
-                                            StoreHelpers.withEntity(store, summonerRef, (summonerChunk, summonerCb, summonerIndex) -> {
-                                                                        EliteMobsSummonMinionTrackingComponent summonerTracking = store.getComponent(summonerRef,
-                                                                                                                                 eliteMobsPlugin.getSummonMinionTrackingComponent()
-                                                                        );
-                                                                        if (summonerTracking == null) return;
-                                                                        summonerTracking.decrementCount();
-                                                                        summonerCb.replaceComponent(summonerRef, eliteMobsPlugin.getSummonMinionTrackingComponent(), summonerTracking);
-                                                                    }
-                                            );
-                                        }
-
-                                        cb.removeEntity(removal.minionRef(), RemoveReason.REMOVE);
-                                    }
-            );
-        });
+    /**
+     * Spawns a one-shot explosion particle burst at the minion's position using
+     * {@link ParticleUtil} — completely independent of the EffectController,
+     * so it plays exactly once and never loops.
+     */
+    private void spawnChainDeathExplosion(Ref<EntityStore> npcRef, Store<EntityStore> store) {
+        TransformComponent transform = store.getComponent(npcRef, TRANSFORM_COMPONENT_TYPE);
+        if (transform == null) return;
+        Vector3d pos = transform.getPosition();
+        ParticleUtil.spawnParticleEffect(CHAIN_DEATH_PARTICLE, pos, store);
     }
 
-    public boolean applyTierFromCommand(EliteMobsConfig config, Ref<EntityStore> npcRef, Store<EntityStore> entityStore,
-                                        CommandBuffer<EntityStore> commandBuffer, NPCEntity npcEntity, int tierIndex) {
-        return applyTierFromCommand(config, npcRef, entityStore, commandBuffer, npcEntity, tierIndex, false);
+    /**
+     * Kills a minion by applying a -1.0 multiplicative modifier on MAX health,
+     * which triggers the engine's natural death system (animation + sound).
+     */
+    private void killMinionViaHealth(Ref<EntityStore> npcRef, Store<EntityStore> store,
+                                     CommandBuffer<EntityStore> commandBuffer) {
+        EntityStatMap entityStats = store.getComponent(npcRef, EntityStatMap.getComponentType());
+        if (entityStats == null) return;
+
+        int healthStatId = DefaultEntityStatTypes.getHealth();
+        entityStats.putModifier(healthStatId,
+                                CHAIN_DEATH_HEALTH_MODIFIER_KEY,
+                                new StaticModifier(Modifier.ModifierTarget.MAX,
+                                                   StaticModifier.CalculationType.MULTIPLICATIVE,
+                                                   -1.0f
+                                )
+        );
+        entityStats.update();
+        commandBuffer.replaceComponent(npcRef, EntityStatMap.getComponentType(), entityStats);
+    }
+
+    public void applyTierFromCommand(EliteMobsConfig config, Ref<EntityStore> npcRef, Store<EntityStore> entityStore,
+                                     CommandBuffer<EntityStore> commandBuffer, NPCEntity npcEntity, int tierIndex) {
+        applyTierFromCommand(config, npcRef, entityStore, commandBuffer, npcEntity, tierIndex, false);
     }
 
     public boolean applyTierFromCommand(EliteMobsConfig config, Ref<EntityStore> npcRef, Store<EntityStore> entityStore,
@@ -376,15 +428,13 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
         EliteMobsTierComponent newTierComponent = new EliteMobsTierComponent();
         newTierComponent.tierIndex = clampedTierIndex;
 
-
         if (matchResult != null) {
             equipmentService.buildAndApply(npcEntity, config, clampedTierIndex, matchResult.mobRule());
         }
 
-        commandBuffer.putComponent(npcRef, eliteMobsPlugin.getEliteMobsComponent(), newTierComponent);
+        commandBuffer.putComponent(npcRef, eliteMobsPlugin.getEliteMobsComponentType(), newTierComponent);
 
-
-        createNewSchemaComponents(config, npcRef, commandBuffer, clampedTierIndex, npcEntity, disableDrops);
+        createNewSchemaComponents(config, npcRef, commandBuffer, npcEntity, disableDrops);
 
         featureRegistry.applyAll(eliteMobsPlugin,
                                  config,
@@ -398,10 +448,10 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
         if (npcEntity.getWorld() != null) {
             npcEntity.getWorld().execute(() -> {
                 if (!npcRef.isValid()) return;
-                com.hypixel.hytale.server.core.universe.world.storage.EntityStore esp = npcEntity.getWorld().getEntityStore();
+                EntityStore esp = npcEntity.getWorld().getEntityStore();
                 if (esp == null) return;
                 Store<EntityStore> es = esp.getStore();
-                com.frotty27.elitemobs.utils.StoreHelpers.withEntity(es, npcRef, (c, cb, i) -> {
+                StoreHelpers.withEntity(es, npcRef, (_, cb, _) -> {
                     if (eliteMobsPlugin.getHealthScalingSystem() != null) {
                         eliteMobsPlugin.getHealthScalingSystem().applyHealthScalingOnSpawn(npcRef, es, cb);
                     }
@@ -441,21 +491,16 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
         double dist = getXZDistance(npcEntity);
         double distPerTier = Math.max(1.0, config.spawning.distancePerTier);
 
-
         int tier = (int) (dist / distPerTier);
         tier = clampTierIndex(tier);
-
 
         double[] chances = new double[Constants.TIERS_AMOUNT];
         chances[tier] = 1.0;
         return chances;
     }
 
-
     private double getXZDistance(NPCEntity npcEntity) {
         if (npcEntity == null) return 0.0;
-        World world = npcEntity.getWorld();
-
 
         Ref<EntityStore> ref = npcEntity.getReference();
         if (ref == null) return 0.0;
@@ -494,33 +539,23 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
     private void tickExistingEliteMob(EliteMobsConfig config, Ref<EntityStore> npcRef, Store<EntityStore> entityStore,
                                       CommandBuffer<EntityStore> commandBuffer, EliteMobsTierComponent tierComponent) {
 
-        int tierIndex = clampTierIndex(tierComponent.tierIndex);
-
         boolean tierComponentChanged = false;
         long currentTick = eliteMobsPlugin.getTickClock().getTick();
 
         String roleName = null;
-        NPCEntity npcEntity = entityStore.getComponent(npcRef, NPCEntity.getComponentType());
+        NPCEntity npcEntity = entityStore.getComponent(npcRef, Objects.requireNonNull(NPCEntity.getComponentType()));
         if (npcEntity != null) roleName = npcEntity.getRoleName();
 
         decrementAbilityCooldowns(npcRef, entityStore, commandBuffer);
 
         tierComponentChanged |= tryHandlePendingSummon(config,
-                                                       npcRef,
-                                                       npcEntity,
-                                                       entityStore,
-                                                       commandBuffer,
-                                                       tierComponent,
-                                                       currentTick
+                                                       npcRef, npcEntity, entityStore, commandBuffer
         );
 
-        tierComponentChanged |= finalizeHealSwapIfNeeded(npcRef,
-                                                         npcEntity,
-                                                         entityStore,
-                                                         commandBuffer,
-                                                         tierComponent,
-                                                         currentTick
+        tierComponentChanged |= finalizeHealSwapIfNeeded(npcRef, npcEntity, entityStore, commandBuffer
         );
+
+        finalizeSummonSwapIfNeeded(npcRef, npcEntity, entityStore, commandBuffer);
 
         if (eliteMobsPlugin.shouldReconcileThisTick()) {
             featureRegistry.reconcileAll(eliteMobsPlugin,
@@ -533,30 +568,32 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
             );
         }
 
-
         if (tierComponentChanged) {
-            commandBuffer.replaceComponent(npcRef, eliteMobsPlugin.getEliteMobsComponent(), tierComponent);
+            commandBuffer.replaceComponent(npcRef, eliteMobsPlugin.getEliteMobsComponentType(), tierComponent);
         }
     }
 
     private void decrementAbilityCooldowns(Ref<EntityStore> npcRef, Store<EntityStore> entityStore,
                                             CommandBuffer<EntityStore> commandBuffer) {
-        com.frotty27.elitemobs.components.ability.ChargeLeapAbilityComponent chargeLeap =
-                entityStore.getComponent(npcRef, eliteMobsPlugin.getChargeLeapAbilityComponent());
+        ChargeLeapAbilityComponent chargeLeap = entityStore.getComponent(npcRef,
+                                                                         eliteMobsPlugin.getChargeLeapAbilityComponentType()
+        );
         if (chargeLeap != null && chargeLeap.cooldownTicksRemaining > 0) {
             chargeLeap.cooldownTicksRemaining--;
-            commandBuffer.replaceComponent(npcRef, eliteMobsPlugin.getChargeLeapAbilityComponent(), chargeLeap);
+            commandBuffer.replaceComponent(npcRef, eliteMobsPlugin.getChargeLeapAbilityComponentType(), chargeLeap);
         }
 
-        com.frotty27.elitemobs.components.ability.HealLeapAbilityComponent healLeap =
-                entityStore.getComponent(npcRef, eliteMobsPlugin.getHealLeapAbilityComponent());
+        HealLeapAbilityComponent healLeap = entityStore.getComponent(npcRef,
+                                                                     eliteMobsPlugin.getHealLeapAbilityComponentType()
+        );
         if (healLeap != null && healLeap.cooldownTicksRemaining > 0) {
             healLeap.cooldownTicksRemaining--;
-            commandBuffer.replaceComponent(npcRef, eliteMobsPlugin.getHealLeapAbilityComponent(), healLeap);
+            commandBuffer.replaceComponent(npcRef, eliteMobsPlugin.getHealLeapAbilityComponentType(), healLeap);
         }
 
-        com.frotty27.elitemobs.components.ability.SummonUndeadAbilityComponent summon =
-                entityStore.getComponent(npcRef, eliteMobsPlugin.getSummonUndeadAbilityComponent());
+        SummonUndeadAbilityComponent summon = entityStore.getComponent(npcRef,
+                                                                       eliteMobsPlugin.getSummonUndeadAbilityComponentType()
+        );
         if (summon != null) {
             boolean changed = false;
             if (summon.cooldownTicksRemaining > 0) {
@@ -568,18 +605,21 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
                 changed = true;
             }
             if (changed) {
-                commandBuffer.replaceComponent(npcRef, eliteMobsPlugin.getSummonUndeadAbilityComponent(), summon);
+                commandBuffer.replaceComponent(npcRef, eliteMobsPlugin.getSummonUndeadAbilityComponentType(), summon);
             }
         }
     }
 
     private boolean tryHandlePendingSummon(EliteMobsConfig config, Ref<EntityStore> npcRef, NPCEntity npcEntity,
-                                           Store<EntityStore> entityStore, CommandBuffer<EntityStore> commandBuffer,
-                                           EliteMobsTierComponent tierComponent,
-                                           long currentTick) {
+                                           Store<EntityStore> entityStore, CommandBuffer<EntityStore> commandBuffer) {
         boolean changed = false;
 
-        com.frotty27.elitemobs.components.ability.SummonUndeadAbilityComponent summonAbility = entityStore.getComponent(npcRef, eliteMobsPlugin.getSummonUndeadAbilityComponent());
+        DeathComponent deathCheck = entityStore.getComponent(npcRef, DeathComponent.getComponentType());
+        if (deathCheck != null) return false;
+
+        SummonUndeadAbilityComponent summonAbility = entityStore.getComponent(npcRef,
+                                                                              eliteMobsPlugin.getSummonUndeadAbilityComponentType()
+        );
         if (summonAbility == null) return false;
 
         if (summonAbility.pendingSummonRole == null || summonAbility.pendingSummonTicksRemaining > 0) return false;
@@ -588,13 +628,16 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
         SummonAbilityConfig summonConfig = getSummonAbilityConfig(config);
         if (summonConfig == null || npcEntity == null) {
             summonAbility.pendingSummonRole = null;
-            commandBuffer.replaceComponent(npcRef, eliteMobsPlugin.getSummonUndeadAbilityComponent(), summonAbility);
+            commandBuffer.replaceComponent(npcRef,
+                                           eliteMobsPlugin.getSummonUndeadAbilityComponentType(),
+                                           summonAbility
+            );
             return false;
         }
 
         String roleIdentifier = summonAbility.pendingSummonRole;
         summonAbility.pendingSummonRole = null;
-        commandBuffer.replaceComponent(npcRef, eliteMobsPlugin.getSummonUndeadAbilityComponent(), summonAbility);
+        commandBuffer.replaceComponent(npcRef, eliteMobsPlugin.getSummonUndeadAbilityComponentType(), summonAbility);
 
         List<SummonMarkerEntry> entries = resolveSummonEntries(summonConfig, roleIdentifier);
         if (entries.isEmpty()) {
@@ -608,12 +651,14 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
             return changed;
         }
 
-        EliteMobsSummonMinionTrackingComponent summonTracking = entityStore.getComponent(npcRef, eliteMobsPlugin.getSummonMinionTrackingComponent());
+        EliteMobsSummonMinionTrackingComponent summonTracking = entityStore.getComponent(npcRef,
+                                                                                         eliteMobsPlugin.getSummonMinionTrackingComponentType()
+        );
         int summonedAliveCount = summonTracking != null ? summonTracking.summonedAliveCount : 0;
 
         int maxAlive = clampSummonMaxAlive(summonConfig.maxAlive);
         int remaining = Math.max(0, maxAlive - summonedAliveCount);
-        if (remaining <= 0) {
+        if (remaining == 0) {
             if (config.debugConfig.isDebugModeEnabled) {
                 EliteMobsLogger.debug(LOGGER,
                                       "Pending summon skipped: cap reached alive=%d max=%d",
@@ -652,12 +697,6 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
             );
         }
 
-        if (summonTracking == null) {
-            summonTracking = EliteMobsSummonMinionTrackingComponent.forParent();
-        }
-        if (summonTracking.summonedAliveCount < 0) summonTracking.summonedAliveCount = 0;
-        summonTracking.summonedAliveCount += spawnCount;
-        commandBuffer.replaceComponent(npcRef, eliteMobsPlugin.getSummonMinionTrackingComponent(), summonTracking);
         var world = npcEntity.getWorld();
         if (world == null) return changed;
         var entityStoreProvider = world.getEntityStore();
@@ -675,25 +714,19 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
             if (entry == null || entry.Name == null || entry.Name.isBlank()) continue;
             Vector3d pos = pickSpawnPosition(center);
             String roleName = entry.Name.trim();
-            roleName = EliteMobsConfig.buildSummonVariantRoleId(roleName);
-            String flockId = entry.Flock;
+            if (roleName.startsWith(EliteMobsConfig.SUMMON_ROLE_PREFIX)) {
+                roleName = roleName.substring(EliteMobsConfig.SUMMON_ROLE_PREFIX.length()).trim();
+            }
             final String roleNameFinal = roleName;
-            final String flockIdFinal = flockId;
             final Vector3d posFinal = pos;
             world.execute(() -> {
-                var spawned = NPCPlugin.get().spawnNPC(entityStoreProvider.getStore(),
-                                                       roleNameFinal,
-                                                       flockIdFinal,
+                var spawned = NPCPlugin.get().spawnNPC(entityStoreProvider.getStore(), roleNameFinal, null,
                                                        posFinal,
                                                        new Vector3f(0f, 0f, 0f)
                 );
                 if (spawned == null || spawned.first() == null) {
                     if (config.debugConfig.isDebugModeEnabled) {
-                        EliteMobsLogger.debug(LOGGER,
-                                              "Spawn failed: role=%s flock=%s",
-                                              EliteMobsLogLevel.INFO,
-                                              roleNameFinal,
-                                              String.valueOf(flockIdFinal)
+                        EliteMobsLogger.debug(LOGGER, "Spawn failed: role=%s", EliteMobsLogLevel.INFO, roleNameFinal
                         );
                     }
                     return;
@@ -703,20 +736,36 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
                 if (storeProvider == null) return;
                 Store<EntityStore> store = storeProvider.getStore();
 
-                StoreHelpers.withEntity(store, spawnedRef, (chunk, cb, index) -> {
+                StoreHelpers.withEntity(store, spawnedRef, (_, cb, _) -> {
                                             EliteMobsSummonedMinionComponent minion = store.getComponent(spawnedRef,
-                                                                                                         eliteMobsPlugin.getSummonedMinionComponent()
+                                                                                                         eliteMobsPlugin.getSummonedMinionComponentType()
                                             );
                                             if (minion == null) {
                                                 minion = new EliteMobsSummonedMinionComponent();
                                             }
                                             minion.summonerId = summonerId;
                                             minion.minTierIndex = 0;
-                                            minion.maxTierIndex = 1;
+                    minion.maxTierIndex = 2;
                                             minion.tierApplied = false;
-                                            cb.putComponent(spawnedRef, eliteMobsPlugin.getSummonedMinionComponent(), minion);
+                    cb.putComponent(spawnedRef, eliteMobsPlugin.getSummonedMinionComponentType(), minion);
                                         }
                 );
+
+                // Join minion to summoner's flock so it follows
+                joinMinionToSummonerFlock(store, npcRef, spawnedRef);
+
+                if (npcRef.isValid()) {
+                    StoreHelpers.withEntity(store, npcRef, (_, cb, _) -> {
+                                                EliteMobsSummonMinionTrackingComponent tracking = store.getComponent(npcRef,
+                                                                                                                     eliteMobsPlugin.getSummonMinionTrackingComponentType()
+                                                );
+                                                if (tracking == null) tracking = EliteMobsSummonMinionTrackingComponent.forParent();
+                                                if (tracking.summonedAliveCount < 0) tracking.summonedAliveCount = 0;
+                                                tracking.summonedAliveCount++;
+                                                cb.replaceComponent(npcRef, eliteMobsPlugin.getSummonMinionTrackingComponentType(), tracking);
+                                            }
+                    );
+                }
             });
         }
 
@@ -724,11 +773,12 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
     }
 
     private boolean finalizeHealSwapIfNeeded(Ref<EntityStore> npcRef, NPCEntity npcEntity,
-                                             Store<EntityStore> entityStore, CommandBuffer<EntityStore> commandBuffer,
-                                             EliteMobsTierComponent tierComponent, long currentTick) {
+                                             Store<EntityStore> entityStore, CommandBuffer<EntityStore> commandBuffer) {
         if (npcEntity == null) return false;
 
-        com.frotty27.elitemobs.components.ability.HealLeapAbilityComponent healLeapAbility = entityStore.getComponent(npcRef, eliteMobsPlugin.getHealLeapAbilityComponent());
+        HealLeapAbilityComponent healLeapAbility = entityStore.getComponent(npcRef,
+                                                                            eliteMobsPlugin.getHealLeapAbilityComponentType()
+        );
         if (healLeapAbility == null || !healLeapAbility.swapActive) return false;
 
         boolean healChainActive = AbilityHelpers.isInteractionTypeRunning(entityStore, npcRef, HEAL_INTERACTION_TYPE);
@@ -739,11 +789,31 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
             healLeapAbility.swapSlot = -1;
             healLeapAbility.swapPreviousItem = null;
             healLeapAbility.hitsTaken = 0;
-            commandBuffer.replaceComponent(npcRef, eliteMobsPlugin.getHealLeapAbilityComponent(), healLeapAbility);
+            commandBuffer.replaceComponent(npcRef, eliteMobsPlugin.getHealLeapAbilityComponentType(), healLeapAbility);
             return false;
         }
 
         return false;
+    }
+
+    private void finalizeSummonSwapIfNeeded(Ref<EntityStore> npcRef, NPCEntity npcEntity,
+                                            Store<EntityStore> entityStore, CommandBuffer<EntityStore> commandBuffer) {
+        if (npcEntity == null) return;
+
+        SummonUndeadAbilityComponent summonAbility = entityStore.getComponent(npcRef,
+                                                                              eliteMobsPlugin.getSummonUndeadAbilityComponentType()
+        );
+        if (summonAbility == null || !summonAbility.swapActive) return;
+
+        boolean summonChainActive = AbilityHelpers.isInteractionTypeRunning(entityStore, npcRef, HEAL_INTERACTION_TYPE);
+
+        if (!summonChainActive) {
+            AbilityHelpers.restoreSummonWeaponIfNeeded(npcEntity, summonAbility);
+            commandBuffer.replaceComponent(npcRef,
+                                           eliteMobsPlugin.getSummonUndeadAbilityComponentType(),
+                                           summonAbility
+            );
+        }
     }
 
     private static int clampSummonCount(int count) {
@@ -753,14 +823,13 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
 
     private static int clampSummonMaxAlive(int value) {
         if (value < EliteMobsConfig.SUMMON_MAX_ALIVE_MIN) return EliteMobsConfig.SUMMON_MAX_ALIVE_MIN;
-        if (value > EliteMobsConfig.SUMMON_MAX_ALIVE_MAX) return EliteMobsConfig.SUMMON_MAX_ALIVE_MAX;
-        return value;
+        return Math.min(value, EliteMobsConfig.SUMMON_MAX_ALIVE_MAX);
     }
 
     private SummonAbilityConfig getSummonAbilityConfig(EliteMobsConfig config) {
-        AbilityConfig abilityConfig = getAbilityConfig(config, ABILITY_UNDEAD_SUMMON);
-        if (abilityConfig instanceof SummonAbilityConfig summonAbilityConfig) return summonAbilityConfig;
-        return null;
+        if (config.abilitiesConfig == null || config.abilitiesConfig.defaultAbilities == null) return null;
+        AbilityConfig raw = config.abilitiesConfig.defaultAbilities.get(ABILITY_UNDEAD_SUMMON);
+        return (raw instanceof SummonAbilityConfig summonAbilityConfig) ? summonAbilityConfig : null;
     }
 
     private List<SummonMarkerEntry> resolveSummonEntries(SummonAbilityConfig config, String roleIdentifier) {
@@ -801,7 +870,7 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
             if (entry == null) continue;
             total += Math.max(0.0, entry.Weight);
         }
-        if (total <= 0.0) return entries.get(0);
+        if (total <= 0.0) return entries.getFirst();
         double roll = random.nextDouble() * total;
         double cumulative = 0.0;
         for (SummonMarkerEntry entry : entries) {
@@ -809,7 +878,7 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
             cumulative += Math.max(0.0, entry.Weight);
             if (roll <= cumulative) return entry;
         }
-        return entries.get(entries.size() - 1);
+        return entries.getLast();
     }
 
     private Vector3d pickSpawnPosition(Vector3d center) {
@@ -820,17 +889,37 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
         return new Vector3d(center.getX() + dx, center.getY(), center.getZ() + dz);
     }
 
-    private boolean rollAbilityEnabled(AbilityConfig abilityConfig, String roleName, int tierIndex) {
-        if (!AssetConfigHelpers.isTieredAssetConfigEnabledForTier(abilityConfig, tierIndex)) return false;
-        if (!AbilityGateEvaluator.isAllowed(abilityConfig, roleName, "", tierIndex)) return false;
-        float chance = AssetConfigHelpers.getFloatForTier(abilityConfig.chancePerTier, tierIndex, 1f);
-        return random.nextFloat() < clamp01(chance);
-    }
+    /**
+     * Makes a minion follow its summoner by joining it to the summoner's flock.
+     * If the summoner doesn't have a flock yet, one is created from its NPC role.
+     */
+    private void joinMinionToSummonerFlock(Store<EntityStore> store, Ref<EntityStore> summonerRef,
+                                           Ref<EntityStore> minionRef) {
+        if (!summonerRef.isValid() || !minionRef.isValid()) return;
 
-    private static AbilityConfig getAbilityConfig(EliteMobsConfig config, String key) {
-        return (AbilityConfig) AssetConfigHelpers.getAssetConfig(config, AssetType.ABILITIES, key);
-    }
+        try {
+            // Get existing flock or create one for the summoner
+            Ref<EntityStore> flockRef = FlockPlugin.getFlockReference(summonerRef, store);
+            if (flockRef == null || !flockRef.isValid()) {
+                NPCEntity summonerNpc = store.getComponent(summonerRef,
+                                                           Objects.requireNonNull(NPCEntity.getComponentType())
+                );
+                if (summonerNpc == null || summonerNpc.getRole() == null) return;
+                flockRef = FlockPlugin.createFlock(store, summonerNpc.getRole());
+                if (flockRef == null || !flockRef.isValid()) {
+                    LOGGER.atWarning().log("[FlockFollow] Failed to create flock for summoner");
+                    return;
+                }
+                FlockMembershipSystems.join(summonerRef, flockRef, store);
+                LOGGER.atInfo().log("[FlockFollow] Created flock for summoner, joined as leader");
+            }
 
+            FlockMembershipSystems.join(minionRef, flockRef, store);
+            LOGGER.atInfo().log("[FlockFollow] Minion joined summoner's flock");
+        } catch (Exception e) {
+            LOGGER.atWarning().log("[FlockFollow] Failed to join minion to flock: %s", e.getMessage());
+        }
+    }
 
     private void logNpcScanSummaryIfDue(EliteMobsConfig config) {
         if (!config.debugConfig.isDebugModeEnabled) return;
@@ -850,81 +939,64 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
         );
     }
 
-
     private void createNewSchemaComponents(EliteMobsConfig config, Ref<EntityStore> npcRef,
-                                           CommandBuffer<EntityStore> commandBuffer, int tierIndex,
-                                           NPCEntity npcEntity, boolean disableDrops) {
+                                           CommandBuffer<EntityStore> commandBuffer, NPCEntity npcEntity,
+                                           boolean disableDrops) {
 
-        long currentTick = eliteMobsPlugin.getTickClock().getTick();
-
-
-        com.frotty27.elitemobs.components.lifecycle.EliteMobsMigrationComponent migration =
-                new com.frotty27.elitemobs.components.lifecycle.EliteMobsMigrationComponent(2);
-        commandBuffer.putComponent(npcRef, eliteMobsPlugin.getMigrationComponent(), migration);
-
+        EliteMobsMigrationComponent migration = new EliteMobsMigrationComponent(2);
+        commandBuffer.putComponent(npcRef, eliteMobsPlugin.getMigrationComponentType(), migration);
 
         if (config.spawning.progressionStyle == EliteMobsConfig.ProgressionStyle.DISTANCE_FROM_SPAWN) {
             double dist = getXZDistance(npcEntity);
-            double interval = Math.max(1.0, config.spawning.distanceBonusInterval);
-            int intervals = (int) (dist / interval);
-
-            float healthBonus = 0f;
-            float damageBonus = 0f;
-            if (intervals > 0) {
-                healthBonus = intervals * config.spawning.distanceHealthBonusPerInterval;
-                damageBonus = intervals * config.spawning.distanceDamageBonusPerInterval;
-
-
-                if (healthBonus > config.spawning.distanceHealthBonusCap) {
-                    healthBonus = config.spawning.distanceHealthBonusCap;
-                }
-                if (damageBonus > config.spawning.distanceDamageBonusCap) {
-                    damageBonus = config.spawning.distanceDamageBonusCap;
-                }
-            }
-
-            com.frotty27.elitemobs.components.progression.EliteMobsProgressionComponent progression =
-                    new com.frotty27.elitemobs.components.progression.EliteMobsProgressionComponent(
-                            healthBonus,
-                            damageBonus,
-                            (float) dist
-                    );
-            commandBuffer.putComponent(npcRef, eliteMobsPlugin.getProgressionComponent(), progression);
+            EliteMobsProgressionComponent progression = getProgressionComponent(config, dist);
+            commandBuffer.putComponent(npcRef, eliteMobsPlugin.getProgressionComponentType(), progression);
         }
 
-
         if (config.healthConfig.enableHealthScaling) {
-            com.frotty27.elitemobs.components.lifecycle.EliteMobsHealthScalingComponent healthScaling =
-                    new com.frotty27.elitemobs.components.lifecycle.EliteMobsHealthScalingComponent();
-            commandBuffer.putComponent(npcRef, eliteMobsPlugin.getHealthScalingComponent(), healthScaling);
+            EliteMobsHealthScalingComponent healthScaling = new EliteMobsHealthScalingComponent();
+            commandBuffer.putComponent(npcRef, eliteMobsPlugin.getHealthScalingComponentType(), healthScaling);
         }
 
         if (config.modelConfig.enableModelScaling) {
-            com.frotty27.elitemobs.components.lifecycle.EliteMobsModelScalingComponent modelScaling =
-                    new com.frotty27.elitemobs.components.lifecycle.EliteMobsModelScalingComponent();
-            commandBuffer.putComponent(npcRef, eliteMobsPlugin.getModelScalingComponent(), modelScaling);
+            EliteMobsModelScalingComponent modelScaling = new EliteMobsModelScalingComponent();
+            commandBuffer.putComponent(npcRef, eliteMobsPlugin.getModelScalingComponentType(), modelScaling);
         }
 
-        com.frotty27.elitemobs.components.ability.EliteMobsAbilityLockComponent abilityLock =
-                new com.frotty27.elitemobs.components.ability.EliteMobsAbilityLockComponent();
-        commandBuffer.putComponent(npcRef, eliteMobsPlugin.getAbilityLockComponent(), abilityLock);
+        EliteMobsAbilityLockComponent abilityLock = new EliteMobsAbilityLockComponent();
+        commandBuffer.putComponent(npcRef, eliteMobsPlugin.getAbilityLockComponentType(), abilityLock);
 
+        EliteMobsActiveEffectsComponent effects = new EliteMobsActiveEffectsComponent();
+        commandBuffer.putComponent(npcRef, eliteMobsPlugin.getActiveEffectsComponentType(), effects);
 
-        com.frotty27.elitemobs.components.effects.EliteMobsActiveEffectsComponent effects =
-                new com.frotty27.elitemobs.components.effects.EliteMobsActiveEffectsComponent();
-        commandBuffer.putComponent(npcRef, eliteMobsPlugin.getActiveEffectsComponent(), effects);
+        EliteMobsSummonMinionTrackingComponent summonTracking = disableDrops ? EliteMobsSummonMinionTrackingComponent.forMinion() : EliteMobsSummonMinionTrackingComponent.forParent();
+        commandBuffer.putComponent(npcRef, eliteMobsPlugin.getSummonMinionTrackingComponentType(), summonTracking);
 
-        com.frotty27.elitemobs.components.summon.EliteMobsSummonMinionTrackingComponent summonTracking =
-                disableDrops
-                        ? com.frotty27.elitemobs.components.summon.EliteMobsSummonMinionTrackingComponent.forMinion()
-                        : com.frotty27.elitemobs.components.summon.EliteMobsSummonMinionTrackingComponent.forParent();
-        commandBuffer.putComponent(npcRef, eliteMobsPlugin.getSummonMinionTrackingComponent(), summonTracking);
+        EliteMobsCombatTrackingComponent combatTracking = new EliteMobsCombatTrackingComponent();
+        commandBuffer.putComponent(npcRef, eliteMobsPlugin.getCombatTrackingComponentType(), combatTracking);
+    }
 
+    private static @NonNull EliteMobsProgressionComponent getProgressionComponent(EliteMobsConfig config, double dist) {
+        double interval = Math.max(1.0, config.spawning.distanceBonusInterval);
+        int intervals = (int) (dist / interval);
 
-        com.frotty27.elitemobs.components.combat.EliteMobsCombatTrackingComponent combatTracking =
-                new com.frotty27.elitemobs.components.combat.EliteMobsCombatTrackingComponent();
-        commandBuffer.putComponent(npcRef, eliteMobsPlugin.getCombatTrackingComponent(), combatTracking);
+        float healthBonus = 0f;
+        float damageBonus = 0f;
+        if (intervals > 0) {
+            healthBonus = intervals * config.spawning.distanceHealthBonusPerInterval;
+            damageBonus = intervals * config.spawning.distanceDamageBonusPerInterval;
 
+            if (healthBonus > config.spawning.distanceHealthBonusCap) {
+                healthBonus = config.spawning.distanceHealthBonusCap;
+            }
+            if (damageBonus > config.spawning.distanceDamageBonusCap) {
+                damageBonus = config.spawning.distanceDamageBonusCap;
+            }
+        }
 
+        EliteMobsProgressionComponent progression = new EliteMobsProgressionComponent(healthBonus,
+                                                                                      damageBonus,
+                                                                                      (float) dist
+        );
+        return progression;
     }
 }

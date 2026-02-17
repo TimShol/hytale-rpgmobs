@@ -5,7 +5,7 @@ plugins {
 
 group = rootProject.property('group')
 version = rootProject.property('version')
-base.archivesName = rootProject.property('name')
+base.archivesName = rootProject.property('name').toString()
 
 dependencies {
     implementation project(':elitemobs-api')
@@ -39,6 +39,9 @@ tasks.processResources {
 
 tasks.shadowJar {
     archiveClassifier = ''
+    // Explicitly include elitemobs-api classes — shadow may skip them due to
+    // split-package overlap (server has implementation classes in the api namespace).
+    from project(':elitemobs-api').sourceSets.main.output
 }
 
 tasks.test {

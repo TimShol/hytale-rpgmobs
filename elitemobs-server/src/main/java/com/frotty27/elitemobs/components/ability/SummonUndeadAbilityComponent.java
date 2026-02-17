@@ -6,6 +6,7 @@ import com.hypixel.hytale.codec.codecs.simple.BooleanCodec;
 import com.hypixel.hytale.codec.codecs.simple.LongCodec;
 import com.hypixel.hytale.codec.codecs.simple.StringCodec;
 import com.hypixel.hytale.component.Component;
+import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import org.jspecify.annotations.Nullable;
 
@@ -17,6 +18,10 @@ public final class SummonUndeadAbilityComponent implements Component<EntityStore
 
     public long pendingSummonTicksRemaining;
     public @Nullable String pendingSummonRole;
+
+    public transient boolean swapActive;
+    public transient byte swapSlot = -1;
+    public transient @Nullable ItemStack swapPreviousItem;
 
     private static final KeyedCodec<Boolean> K_ABILITY_ENABLED =
             new KeyedCodec<>("AbilityEnabled", new BooleanCodec());

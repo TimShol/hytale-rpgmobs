@@ -1,6 +1,5 @@
 package com.frotty27.elitemobs.api.events;
 
-import com.frotty27.elitemobs.api.event.ICancellable;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import org.jspecify.annotations.Nullable;

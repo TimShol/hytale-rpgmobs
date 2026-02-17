@@ -1,6 +1,5 @@
 package com.frotty27.elitemobs.systems.death;
 
-import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent;
@@ -16,11 +15,8 @@ final class EliteMobsDropsHandler {
     }
 
     void handle(
-            @NonNull Ref<EntityStore> ref,
-            @NonNull DeathComponent death,
-            @NonNull Store<EntityStore> store,
-            @NonNull CommandBuffer<EntityStore> cb
+            @NonNull Ref<EntityStore> ref, @NonNull DeathComponent death, @NonNull Store<EntityStore> store
     ) {
-        system.processOnDeath(ref, death, store, cb);
+        system.processOnDeath(ref, death, store);
     }
 }

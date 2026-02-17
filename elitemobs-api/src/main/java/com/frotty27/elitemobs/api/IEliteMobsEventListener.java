@@ -1,10 +1,6 @@
 package com.frotty27.elitemobs.api;
 
-import com.frotty27.elitemobs.api.event.*;
-import com.frotty27.elitemobs.api.events.EliteMobAbilityCompletedEvent;
-import com.frotty27.elitemobs.api.events.EliteMobAbilityInterruptedEvent;
-import com.frotty27.elitemobs.api.events.EliteMobAbilityStartedEvent;
-import com.frotty27.elitemobs.api.events.EliteMobScalingAppliedEvent;
+import com.frotty27.elitemobs.api.events.*;
 
 /**
  * Listener interface for receiving EliteMobs events.
@@ -67,17 +63,6 @@ public interface IEliteMobsEventListener {
      * @param event the damage received event
      */
     default void onEliteMobDamageReceived(EliteMobDamageReceivedEvent event) {}
-
-    /**
-     * Called when an elite mob uses an ability.
-     *
-     * @param event the ability event
-     * @deprecated Use {@link #onEliteMobAbilityStarted(EliteMobAbilityStartedEvent)},
-     *             {@link #onEliteMobAbilityCompleted(EliteMobAbilityCompletedEvent)}, and
-     *             {@link #onEliteMobAbilityInterrupted(EliteMobAbilityInterruptedEvent)} instead.
-     */
-    @Deprecated
-    default void onEliteMobAbility(EliteMobAbilityEvent event) {}
 
     /**
      * Called during a reconciliation pass, allowing listeners to synchronize

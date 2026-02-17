@@ -1,7 +1,5 @@
 package com.frotty27.elitemobs.commands;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import com.frotty27.elitemobs.permissions.EliteMobsPermissions;
 import com.frotty27.elitemobs.plugin.EliteMobsPlugin;
 import com.frotty27.elitemobs.systems.spawn.EliteMobsSpawnSystem;
@@ -25,6 +23,9 @@ import com.hypixel.hytale.server.npc.commands.NPCCommand;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import it.unimi.dsi.fastutil.Pair;
 import org.jspecify.annotations.NonNull;
+
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class EliteMobsSpawnCommand extends AbstractPlayerCommand {
 
@@ -95,7 +96,7 @@ public final class EliteMobsSpawnCommand extends AbstractPlayerCommand {
             return;
         }
 
-        NPCEntity npcEntity = entityStore.getComponent(npcRef, NPCEntity.getComponentType());
+        NPCEntity npcEntity = entityStore.getComponent(npcRef, Objects.requireNonNull(NPCEntity.getComponentType()));
         if (npcEntity == null) {
             ctx.sendMessage(Message.raw("[EliteMobs] Spawned NPC, but entity data was not ready yet."));
             return;

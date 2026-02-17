@@ -1,4 +1,4 @@
-package com.frotty27.elitemobs.api.event;
+package com.frotty27.elitemobs.api.events;
 
 /**
  * Interface for events that can be cancelled by listeners.
