@@ -53,7 +53,7 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
 
     @Override
     public void onEliteMobAggro(EliteMobAggroEvent event) {
-        LOGGER.atInfo().log("[Aggro] Mob aggro'd tier=%d", event.getTier());
+        EliteMobsLogger.debug(LOGGER, "[Aggro] Mob aggro'd tier=%d", EliteMobsLogLevel.INFO, event.getTier());
         evaluateAbilitiesForEntity(event.getEntityRef(), AbilityTriggerSource.AGGRO);
     }
 
@@ -94,8 +94,14 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
 
         EliteMobsAbilityLockComponent lock = store.getComponent(entityRef, plugin.getAbilityLockComponentType());
         if (lock != null && (lock.isLocked() || lock.isChainStartPending())) {
-            LOGGER.atInfo().log("[AbilityEval] SKIP: lock active (locked=%b pending=%b ability=%s) source=%s",
-                    lock.isLocked(), lock.isChainStartPending(), lock.activeAbilityId, source.name());
+            EliteMobsLogger.debug(LOGGER,
+                                  "[AbilityEval] SKIP: lock active (locked=%b pending=%b ability=%s) source=%s",
+                                  EliteMobsLogLevel.INFO,
+                                  lock.isLocked(),
+                                  lock.isChainStartPending(),
+                                  lock.activeAbilityId,
+                                  source.name()
+            );
             return;
         }
 
@@ -163,8 +169,10 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
         if (chargeLeap == null || !chargeLeap.abilityEnabled) return false;
 
         if (chargeLeap.cooldownTicksRemaining > 0) {
-            LOGGER.atInfo().log("[ChargeLeap] BLOCKED by cooldown: remaining=%d ticks (%.1f sec)",
-                    chargeLeap.cooldownTicksRemaining,
+            EliteMobsLogger.debug(LOGGER,
+                                  "[ChargeLeap] BLOCKED by cooldown: remaining=%d ticks (%.1f sec)",
+                                  EliteMobsLogLevel.INFO,
+                                  chargeLeap.cooldownTicksRemaining,
                                 chargeLeap.cooldownTicksRemaining / (float) Constants.TICKS_PER_SECOND
             );
             return false;
@@ -174,19 +182,25 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
                                                                      plugin.getCombatTrackingComponentType()
         );
         if (combat == null || !combat.isInCombat()) {
-            LOGGER.atInfo().log("[ChargeLeap] BLOCKED: mob not in combat (state=%s)",
-                    combat != null ? combat.state.name() : "null");
+            EliteMobsLogger.debug(LOGGER,
+                                  "[ChargeLeap] BLOCKED: mob not in combat (state=%s)",
+                                  EliteMobsLogLevel.INFO,
+                                  combat != null ? combat.state.name() : "null"
+            );
             return false;
         }
 
         Ref<EntityStore> targetRef = combat.getBestTarget();
         if (targetRef == null || !targetRef.isValid()) {
-            LOGGER.atInfo().log("[ChargeLeap] BLOCKED: no valid target");
+            EliteMobsLogger.debug(LOGGER, "[ChargeLeap] BLOCKED: no valid target", EliteMobsLogLevel.INFO);
             return false;
         }
 
         if (combat.aiTarget == null || !combat.aiTarget.isValid()) {
-            LOGGER.atInfo().log("[ChargeLeap] BLOCKED: no AI target (mob may be retreating, damage target still set)");
+            EliteMobsLogger.debug(LOGGER,
+                                  "[ChargeLeap] BLOCKED: no AI target (mob may be retreating, damage target still set)",
+                                  EliteMobsLogLevel.INFO
+            );
             return false;
         }
 
@@ -195,8 +209,10 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
 
         float distance = calculateDistance(entityRef, targetRef, store);
         if (distance < abilityConfig.minRange || distance > abilityConfig.maxRange) {
-            LOGGER.atInfo().log("[ChargeLeap] BLOCKED by distance: dist=%.1f (range=%.1f-%.1f)",
-                                distance,
+            EliteMobsLogger.debug(LOGGER,
+                                  "[ChargeLeap] BLOCKED by distance: dist=%.1f (range=%.1f-%.1f)",
+                                  EliteMobsLogLevel.INFO,
+                                  distance,
                                 abilityConfig.minRange,
                                 abilityConfig.maxRange
             );
@@ -211,7 +227,11 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
 
         boolean started = startAbilityChain(entityRef, store, AbilityIds.CHARGE_LEAP, tierIndex, config);
         if (!started) {
-            LOGGER.atInfo().log("[ChargeLeap] chain failed to start for tier %d", tierIndex);
+            EliteMobsLogger.debug(LOGGER,
+                                  "[ChargeLeap] chain failed to start for tier %d",
+                                  EliteMobsLogLevel.INFO,
+                                  tierIndex
+            );
             return false;
         }
 
@@ -220,8 +240,13 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
 
         lockAbility(entityRef, store, AbilityIds.CHARGE_LEAP);
 
-        LOGGER.atInfo().log("[ChargeLeap] TRIGGERED: dist=%.1f (range=%.1f-%.1f) tier=%d cooldown=%d ticks (%.1f sec)",
-                distance, abilityConfig.minRange, abilityConfig.maxRange, tierIndex,
+        EliteMobsLogger.debug(LOGGER,
+                              "[ChargeLeap] TRIGGERED: dist=%.1f (range=%.1f-%.1f) tier=%d cooldown=%d ticks (%.1f sec)",
+                              EliteMobsLogLevel.INFO,
+                              distance,
+                              abilityConfig.minRange,
+                              abilityConfig.maxRange,
+                              tierIndex,
                             cooldownTicks,
                             cooldownTicks / (float) Constants.TICKS_PER_SECOND
         );
@@ -250,8 +275,10 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
         if (tracking != null) {
             int maxAlive = Math.max(0, Math.min(50, abilityConfig.maxAlive));
             if (!tracking.canSummonMore(maxAlive)) {
-                LOGGER.atInfo().log("[SummonUndead] BLOCKED: cap reached alive=%d max=%d",
-                                    tracking.summonedAliveCount,
+                EliteMobsLogger.debug(LOGGER,
+                                      "[SummonUndead] BLOCKED: cap reached alive=%d max=%d",
+                                      EliteMobsLogLevel.INFO,
+                                      tracking.summonedAliveCount,
                                     maxAlive
                 );
                 return;
@@ -283,8 +310,10 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
 
         lockAbility(entityRef, store, AbilityIds.SUMMON_UNDEAD);
 
-        LOGGER.atInfo().log("[SummonUndead] TRIGGERED: tier=%d role=%s spawnDelay=%d cooldown=%d ticks",
-                            tierIndex,
+        EliteMobsLogger.debug(LOGGER,
+                              "[SummonUndead] TRIGGERED: tier=%d role=%s spawnDelay=%d cooldown=%d ticks",
+                              EliteMobsLogLevel.INFO,
+                              tierIndex,
                             roleIdentifier,
                             SUMMON_SPAWN_DELAY_TICKS,
                             cooldownTicks
@@ -306,8 +335,10 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
                                                                        plugin.getChargeLeapAbilityComponentType()
             );
             if (chargeLeap != null) {
-                LOGGER.atInfo().log("[ChargeLeap] COMPLETED: cooldownRemaining=%d ticks (%.1f sec)",
-                        chargeLeap.cooldownTicksRemaining,
+                EliteMobsLogger.debug(LOGGER,
+                                      "[ChargeLeap] COMPLETED: cooldownRemaining=%d ticks (%.1f sec)",
+                                      EliteMobsLogLevel.INFO,
+                                      chargeLeap.cooldownTicksRemaining,
                                     chargeLeap.cooldownTicksRemaining / (float) Constants.TICKS_PER_SECOND
                 );
             }
@@ -364,7 +395,7 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
         Store<EntityStore> store = entityRef.getStore();
         if (store == null) return;
 
-        LOGGER.atInfo().log("[Deaggro] Mob deaggro'd tier=%d", event.getTier());
+        EliteMobsLogger.debug(LOGGER, "[Deaggro] Mob deaggro'd tier=%d", EliteMobsLogLevel.INFO, event.getTier());
 
         EliteMobsAbilityLockComponent lock = store.getComponent(entityRef, plugin.getAbilityLockComponentType());
         if (lock == null || !lock.isLocked()) return;
@@ -403,14 +434,22 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
         if (healLeap == null) return false;
 
         healLeap.hitsTaken++;
-        LOGGER.atInfo().log("[HealLeap] Hit taken during ability: hitsTaken=%d/%d",
-                healLeap.hitsTaken, HEAL_LEAP_INTERRUPT_HITS);
+        EliteMobsLogger.debug(LOGGER,
+                              "[HealLeap] Hit taken during ability: hitsTaken=%d/%d",
+                              EliteMobsLogLevel.INFO,
+                              healLeap.hitsTaken,
+                              HEAL_LEAP_INTERRUPT_HITS
+        );
 
         if (healLeap.hitsTaken < HEAL_LEAP_INTERRUPT_HITS) {
             return true;
         }
 
-        LOGGER.atInfo().log("[HealLeap] INTERRUPTED by %d hits, cancelling chain", healLeap.hitsTaken);
+        EliteMobsLogger.debug(LOGGER,
+                              "[HealLeap] INTERRUPTED by %d hits, cancelling chain",
+                              EliteMobsLogLevel.INFO,
+                              healLeap.hitsTaken
+        );
 
         NPCEntity npcEntity = store.getComponent(entityRef, NPC_COMPONENT_TYPE);
         if (npcEntity != null) {
@@ -657,9 +696,17 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
 
         boolean swapped = AbilityHelpers.swapToPotionInHand(npcEntity, healLeap, potionItemId);
         if (swapped) {
-            LOGGER.atInfo().log("[HealLeap] Weapon swapped to potion '%s'", potionItemId);
+            EliteMobsLogger.debug(LOGGER,
+                                  "[HealLeap] Weapon swapped to potion '%s'",
+                                  EliteMobsLogLevel.INFO,
+                                  potionItemId
+            );
         } else {
-            LOGGER.atInfo().log("[HealLeap] Weapon swap failed (itemId=%s)", potionItemId);
+            EliteMobsLogger.debug(LOGGER,
+                                  "[HealLeap] Weapon swap failed (itemId=%s)",
+                                  EliteMobsLogLevel.INFO,
+                                  potionItemId
+            );
         }
     }
 
@@ -673,9 +720,17 @@ public final class EliteMobsAbilityTriggerListener implements IEliteMobsEventLis
 
         boolean swapped = AbilityHelpers.swapToSpellbookInHand(npcEntity, summon, staffItemId);
         if (swapped) {
-            LOGGER.atInfo().log("[SummonUndead] Weapon swapped to staff '%s'", staffItemId);
+            EliteMobsLogger.debug(LOGGER,
+                                  "[SummonUndead] Weapon swapped to staff '%s'",
+                                  EliteMobsLogLevel.INFO,
+                                  staffItemId
+            );
         } else {
-            LOGGER.atInfo().log("[SummonUndead] Weapon swap failed (itemId=%s)", staffItemId);
+            EliteMobsLogger.debug(LOGGER,
+                                  "[SummonUndead] Weapon swap failed (itemId=%s)",
+                                  EliteMobsLogLevel.INFO,
+                                  staffItemId
+            );
         }
     }
 

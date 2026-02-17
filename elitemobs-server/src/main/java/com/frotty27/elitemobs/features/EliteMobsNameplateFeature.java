@@ -57,7 +57,7 @@ public final class EliteMobsNameplateFeature implements IEliteMobsFeature {
             @Nullable String roleName
     ) {
         if (roleName == null || roleName.isBlank()) {
-            if (config != null && config.nameplatesConfig.nameplatesEnabled) {
+            if (config != null && config.nameplatesConfig.enableMobNameplates) {
                 plugin.getNameplateService().applyOrUpdateNameplate(
                         config, npcRef, entityStore, commandBuffer, "", tierComponent.tierIndex);
             }

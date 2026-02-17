@@ -13,6 +13,8 @@ import com.frotty27.elitemobs.components.lifecycle.EliteMobsModelScalingComponen
 import com.frotty27.elitemobs.components.progression.EliteMobsProgressionComponent;
 import com.frotty27.elitemobs.components.summon.EliteMobsSummonMinionTrackingComponent;
 import com.frotty27.elitemobs.config.EliteMobsConfig;
+import com.frotty27.elitemobs.logs.EliteMobsLogLevel;
+import com.frotty27.elitemobs.logs.EliteMobsLogger;
 import com.frotty27.elitemobs.plugin.EliteMobsPlugin;
 import com.frotty27.elitemobs.systems.ability.AbilityIds;
 import com.hypixel.hytale.component.ArchetypeChunk;
@@ -66,7 +68,13 @@ public final class EliteMobsComponentMigrationSystem extends EntityTickingSystem
         EliteMobsMigrationComponent updatedMigration = new EliteMobsMigrationComponent(CURRENT_MIGRATION_VERSION);
         commandBuffer.putComponent(entityRef, plugin.getMigrationComponentType(), updatedMigration);
 
-        LOGGER.atInfo().log("Migrated entity from version %d to %d (tier %d)", currentVersion, CURRENT_MIGRATION_VERSION, tier.tierIndex);
+        EliteMobsLogger.debug(LOGGER,
+                              "Migrated entity from version %d to %d (tier %d)",
+                              EliteMobsLogLevel.INFO,
+                              currentVersion,
+                              CURRENT_MIGRATION_VERSION,
+                              tier.tierIndex
+        );
     }
 
     private void migrateFromV0(Ref<EntityStore> entityRef, EliteMobsTierComponent tier,
@@ -75,19 +83,23 @@ public final class EliteMobsComponentMigrationSystem extends EntityTickingSystem
         EliteMobsConfig config = plugin.getConfig();
         int tierIndex = tier.tierIndex;
 
-        LOGGER.atInfo().log("Migrating entity from v0 (tier %d) - creating all components with defaults", tierIndex);
+        EliteMobsLogger.debug(LOGGER,
+                              "Migrating entity from v0 (tier %d) - creating all components with defaults",
+                              EliteMobsLogLevel.INFO,
+                              tierIndex
+        );
 
         migrateHealLeapAbility(entityRef, config, tierIndex, commandBuffer);
         migrateChargeLeapAbility(entityRef, config, tierIndex, commandBuffer);
         migrateSummonUndeadAbility(entityRef, config, tierIndex, commandBuffer);
 
-        if (config.healthConfig.enableHealthScaling) {
+        if (config.healthConfig.enableMobHealthScaling) {
             commandBuffer.putComponent(entityRef,
                                        plugin.getHealthScalingComponentType(),
                                        new EliteMobsHealthScalingComponent()
             );
         }
-        if (config.modelConfig.enableModelScaling) {
+        if (config.modelConfig.enableMobModelScaling) {
             commandBuffer.putComponent(entityRef,
                                        plugin.getModelScalingComponentType(),
                                        new EliteMobsModelScalingComponent()
@@ -121,9 +133,12 @@ public final class EliteMobsComponentMigrationSystem extends EntityTickingSystem
         CommandBuffer<EntityStore> commandBuffer
     ) {
         EliteMobsConfig config = plugin.getConfig();
-        LOGGER.atInfo().log("Migrating entity from v1 - creating split scaling components with defaults");
+        EliteMobsLogger.debug(LOGGER,
+                              "Migrating entity from v1 - creating split scaling components with defaults",
+                              EliteMobsLogLevel.INFO
+        );
 
-        if (config.healthConfig.enableHealthScaling) {
+        if (config.healthConfig.enableMobHealthScaling) {
             EliteMobsHealthScalingComponent healthScaling = entityStore.getComponent(entityRef,
                                                                                      plugin.getHealthScalingComponentType()
             );
@@ -135,7 +150,7 @@ public final class EliteMobsComponentMigrationSystem extends EntityTickingSystem
             }
         }
 
-        if (config.modelConfig.enableModelScaling) {
+        if (config.modelConfig.enableMobModelScaling) {
             EliteMobsModelScalingComponent modelScaling = entityStore.getComponent(entityRef,
                                                                                    plugin.getModelScalingComponentType()
             );

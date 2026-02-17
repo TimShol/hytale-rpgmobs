@@ -33,7 +33,7 @@ public final class EliteMobsHealthScalingFeature implements IEliteMobsFeature {
             EliteMobsTierComponent tierComponent,
             @Nullable String roleName
     ) {
-        if (config.healthConfig.enableHealthScaling) {
+        if (config.healthConfig.enableMobHealthScaling) {
             EliteMobsHealthScalingComponent healthScaling = new EliteMobsHealthScalingComponent();
             commandBuffer.putComponent(npcRef, plugin.getHealthScalingComponentType(), healthScaling);
         }

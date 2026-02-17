@@ -53,7 +53,7 @@ public final class EliteMobsConfig {
     public static final int SUMMON_MAX_ALIVE_MAX = 50;
 
     @CfgVersion
-    @Cfg(group = "System", file = "core.yml", comment = "Configuration version. Automatically updated by the mod.")
+    @Cfg(group = "System", file = "core.yml", comment = "Configuration version. Automatically updated by the mod. WARNING: If this field is missing or set to 0.0.0, ALL config files will be deleted and regenerated with fresh defaults on next startup. Do not remove this field.")
     public String configVersion = "0.0.0";
 
     public final SpawningConfig spawning = new SpawningConfig();
@@ -541,25 +541,25 @@ public final class EliteMobsConfig {
 
     public static final class NameplatesConfig {
         @Cfg(group = "Nameplates", file = "visuals.yml", comment = "Enable or disable nameplates globally.")
-        public boolean nameplatesEnabled = true;
+        public boolean enableMobNameplates = true;
 
         @Cfg(group = "Nameplates", file = "visuals.yml", comment = "Nameplate style: RANKED_ROLE (recommended) or SIMPLE.")
         public NameplateMode nameplateMode = NameplateMode.RANKED_ROLE;
 
         @FixedArraySize(TIERS_AMOUNT)
         @Cfg(group = "Nameplates", file = "visuals.yml", comment = "Enable nameplates for specific tiers.")
-        public boolean[] nameplatesEnabledPerTier = {true, true, true, true, true};
+        public boolean[] mobNameplatesEnabledPerTier = {true, true, true, true, true};
 
         @Cfg(group = "Nameplates", file = "visuals.yml", comment = "Include specific role names (case-insensitive). Empty allows all.")
-        public List<String> nameplateMustContainRoles = List.of();
+        public List<String> mobNameplateMustContainRoles = List.of();
 
         @Cfg(group = "Nameplates", file = "visuals.yml", comment = "Exclude specific role names (case-insensitive).")
-        public List<String> nameplateMustNotContainRoles = List.of();
+        public List<String> mobNameplateMustNotContainRoles = List.of();
 
         @FixedArraySize(TIERS_AMOUNT)
         @Default
         @Cfg(group = "Nameplates", file = "visuals.yml", comment = "Visual indicators for each tier.")
-        public String[] nameplatePrefixPerTier = {"[•]", "[• •]", "[• • •]", "[• • • •]", "[• • • • •]"};
+        public String[] monNameplatePrefixPerTier = {"[•]", "[• •]", "[• • •]", "[• • • •]", "[• • • • •]"};
 
         @Cfg(group = "Nameplates", file = "visuals.yml", comment = "Tier-based name prefixes per family (Zombie, Skeleton, etc.). Each list must have 5 values.")
         public Map<String, List<String>> defaultedTierPrefixesByFamily = defaultTierPrefixesByFamily();
@@ -634,19 +634,25 @@ public final class EliteMobsConfig {
     public static final class HealthConfig {
         @Default
         @Cfg(group = "Health", file = "stats.yml", comment = "Enable or disable health scaling for EliteMobs.")
-        public boolean enableHealthScaling = true;
+        public boolean enableMobHealthScaling = true;
 
         @Default
         @FixedArraySize(TIERS_AMOUNT)
         @Cfg(group = "Health", file = "stats.yml", comment = "Base health multiplier per tier.")
-        public float[] healthMultiplierPerTier = {0.3f, 0.6f, 1.2f, 1.8f, 2.6f};
+        public float[] mobHealthMultiplierPerTier = {0.3f, 0.6f, 1.2f, 1.8f, 2.6f};
+
+        @Default
+        @Min(0.0)
+        @Max(1.0)
+        @Cfg(group = "Health", file = "stats.yml", comment = "Random health variance multiplier (e.g. 0.05 = +/-5% health).")
+        public float mobHealthRandomVariance = 0.05f;
     }
 
     public static final class AssetGeneratorConfig {
         @Default
         @FixedArraySize(TIERS_AMOUNT)
         @YamlIgnore
-        public String[] tierSuffixes = {"Tier_1", "Tier_2", "Tier_3", "Tier_4", "Tier_5"};
+        public transient String[] tierSuffixes = {"Tier_1", "Tier_2", "Tier_3", "Tier_4", "Tier_5"};
     }
 
     public static final class GearConfig {
@@ -1077,18 +1083,18 @@ public final class EliteMobsConfig {
     public static final class ModelConfig {
         @Default
         @Cfg(group = "Model", file = "visuals.yml", comment = "Enable or disable physical size scaling per tier.")
-        public boolean enableModelScaling = true;
+        public boolean enableMobModelScaling = true;
 
         @Default
         @FixedArraySize(TIERS_AMOUNT)
         @Cfg(group = "Model", file = "visuals.yml", comment = "Physical scale multiplier per tier.")
-        public float[] modelScaleMultiplierPerTier = {0.74f, 0.85f, 0.96f, 1.07f, 1.18f};
+        public float[] mobModelScaleMultiplierPerTier = {0.74f, 0.85f, 0.96f, 1.07f, 1.18f};
 
         @Min(0.0)
         @Max(0.2)
         @Default
         @Cfg(group = "Model", file = "visuals.yml", comment = "Random size variance (e.g., 0.04 = +/-4% size).")
-        public float modelScaleRandomVariance = 0.04f;
+        public float mobModelScaleRandomVariance = 0.04f;
     }
 
     public static final class LootConfig {
@@ -3630,6 +3636,19 @@ public final class EliteMobsConfig {
               )
         );
 
+        m.put("Wraith",
+              mobRule(true,
+                      List.of("Wraith"),
+                      List.of(),
+                      List.of(),
+                      List.of(),
+                      new boolean[]{true, true, true, false, false},
+                      WeaponOverrideMode.ALWAYS,
+                      List.of(),
+                      DAMAGE_MELEE_ONLY_NOT_CONTAINS
+              )
+        );
+
         return m;
     }
 
@@ -3739,7 +3758,7 @@ public final class EliteMobsConfig {
         if (summonConfig.spawnMarkerEntriesByRole != null && !summonConfig.spawnMarkerEntriesByRole.isEmpty()) return;
         if (mobsConfig == null || mobsConfig.defaultMobRules == null || mobsConfig.defaultMobRules.isEmpty()) return;
 
-        LinkedHashSet<String> bowNpcIds = new LinkedHashSet<>();
+        LinkedHashSet<String> archerNpcIds = new LinkedHashSet<>();
         LinkedHashSet<String> allNpcIds = new LinkedHashSet<>();
         LinkedHashSet<String> zombieNpcIds = new LinkedHashSet<>();
         LinkedHashSet<String> wraithNpcIds = new LinkedHashSet<>();
@@ -3780,20 +3799,20 @@ public final class EliteMobsConfig {
             if (!isTierEnabled(rule.enableWeaponOverrideForTier, 0)) continue;
             if (!hasBowWeaponConstraint(rule.weaponIdMustContain)) continue;
 
-            bowNpcIds.addAll(ids);
+            archerNpcIds.addAll(ids);
         }
 
-        if (bowNpcIds.isEmpty() && !allNpcIds.isEmpty()) {
+        if (archerNpcIds.isEmpty() && !allNpcIds.isEmpty()) {
             for (String id : allNpcIds) {
                 String lower = id.toLowerCase(Locale.ROOT);
                 if (lower.contains("archer") || lower.contains("ranger") || lower.contains("scout") || lower.contains(
                         "bow")) {
-                    bowNpcIds.add(id);
+                    archerNpcIds.add(id);
                 }
             }
         }
 
-        if (bowNpcIds.isEmpty()) {
+        if (archerNpcIds.isEmpty()) {
             List<String> fallbackIds = List.of("Skeleton_Archer",
                                                "Skeleton_Archer_Patrol",
                                                "Skeleton_Archer_Wander",
@@ -3825,10 +3844,10 @@ public final class EliteMobsConfig {
                                                "Skeleton_Sand_Scout_Patrol",
                                                "Skeleton_Sand_Scout_Wander"
             );
-            bowNpcIds.addAll(fallbackIds);
+            archerNpcIds.addAll(fallbackIds);
         }
 
-        if (bowNpcIds.isEmpty()) return;
+        if (archerNpcIds.isEmpty()) return;
 
         ArrayList<String> roleIdentifiers = new ArrayList<>();
         if (summonConfig.roleIdentifiers != null) {
@@ -3850,7 +3869,7 @@ public final class EliteMobsConfig {
             ArrayList<String> roleBowIds = new ArrayList<>();
             ArrayList<String> roleNpcIds = new ArrayList<>();
             if ("default".equalsIgnoreCase(identifier)) {
-                roleBowIds.addAll(bowNpcIds);
+                roleBowIds.addAll(archerNpcIds);
                 roleNpcIds.addAll(allNpcIds);
             } else {
                 String identifierLower = identifier.toLowerCase(Locale.ROOT);
@@ -3860,14 +3879,14 @@ public final class EliteMobsConfig {
                     if (matchesMoreSpecificIdentifier(idLower, identifierLower, moreSpecificIdentifiers)) continue;
                     roleNpcIds.add(id);
                 }
-                for (String id : bowNpcIds) {
+                for (String id : archerNpcIds) {
                     String idLower = id.toLowerCase(Locale.ROOT);
                     if (!idLower.contains(identifierLower)) continue;
                     if (matchesMoreSpecificIdentifier(idLower, identifierLower, moreSpecificIdentifiers)) continue;
                     roleBowIds.add(id);
                 }
                 if (roleNpcIds.isEmpty()) roleNpcIds.addAll(allNpcIds);
-                if (roleBowIds.isEmpty()) roleBowIds.addAll(bowNpcIds);
+                if (roleBowIds.isEmpty()) roleBowIds.addAll(archerNpcIds);
             }
 
             moreSpecificIdentifiers.add(identifier.toLowerCase(Locale.ROOT));

@@ -25,7 +25,12 @@ public final class EliteMobsEventBus implements IEliteMobsEventBus {
     }
 
     public void fire(EliteMobSpawnedEvent event) {
-        LOGGER.atInfo().log("[EventBus] fire(EliteMobSpawnedEvent) tier=%d listeners=%d", event.getTier(), listeners.size());
+        EliteMobsLogger.debug(LOGGER,
+                              "[EventBus] fire(EliteMobSpawnedEvent) tier=%d listeners=%d",
+                              EliteMobsLogLevel.INFO,
+                              event.getTier(),
+                              listeners.size()
+        );
         for (var listener : listeners) {
             try { listener.onEliteMobSpawned(event); } catch (Throwable t) { logError("onEliteMobSpawned", t); }
         }

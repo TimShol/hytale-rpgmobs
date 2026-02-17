@@ -49,7 +49,7 @@ public class ModelScalingSystem extends EntityTickingSystem<EntityStore> impleme
     @Override
     public void tick(float deltaTime, int entityIndex, @NonNull ArchetypeChunk<EntityStore> chunk, @NonNull Store<EntityStore> store, @NonNull CommandBuffer<EntityStore> commandBuffer) {
         EliteMobsConfig config = plugin.getConfig();
-        if (config == null || !config.modelConfig.enableModelScaling) return;
+        if (config == null || !config.modelConfig.enableMobModelScaling) return;
 
         if (!plugin.shouldReconcileThisTick()) return;
 
@@ -66,12 +66,10 @@ public class ModelScalingSystem extends EntityTickingSystem<EntityStore> impleme
 
 
     private float computeModelScaleMultiplier(EliteMobsConfig config, int tierIndex) {
-        float baseMultiplier =
-                (config.modelConfig.modelScaleMultiplierPerTier != null && config.modelConfig.modelScaleMultiplierPerTier.length > tierIndex)
-                        ? config.modelConfig.modelScaleMultiplierPerTier[tierIndex]
+        float baseMultiplier = (config.modelConfig.mobModelScaleMultiplierPerTier != null && config.modelConfig.mobModelScaleMultiplierPerTier.length > tierIndex) ? config.modelConfig.mobModelScaleMultiplierPerTier[tierIndex]
                         : 1.0f;
 
-        float variance = Math.max(0f, config.modelConfig.modelScaleRandomVariance);
+        float variance = Math.max(0f, config.modelConfig.mobModelScaleRandomVariance);
         float randomizedMultiplier = baseMultiplier + ((random.nextFloat() * 2f - 1f) * variance);
 
         return clampFloat(randomizedMultiplier, MODEL_SCALE_MIN, MODEL_SCALE_MAX);
@@ -142,7 +140,7 @@ public class ModelScalingSystem extends EntityTickingSystem<EntityStore> impleme
 
     public void applyModelScalingOnSpawn(Ref<EntityStore> npcRef, Store<EntityStore> store, CommandBuffer<EntityStore> commandBuffer) {
         EliteMobsConfig config = plugin.getConfig();
-        if (config == null || !config.modelConfig.enableModelScaling) return;
+        if (config == null || !config.modelConfig.enableMobModelScaling) return;
 
         EliteMobsTierComponent tierComponent = store.getComponent(npcRef, plugin.getEliteMobsComponentType());
         EliteMobsModelScalingComponent modelScalingComponent = store.getComponent(npcRef,

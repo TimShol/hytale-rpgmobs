@@ -33,7 +33,7 @@ public final class EliteMobsModelScalingFeature implements IEliteMobsFeature {
             EliteMobsTierComponent tierComponent,
             @Nullable String roleName
     ) {
-        if (config.modelConfig.enableModelScaling) {
+        if (config.modelConfig.enableMobModelScaling) {
             EliteMobsModelScalingComponent modelScaling = new EliteMobsModelScalingComponent();
             commandBuffer.putComponent(npcRef, plugin.getModelScalingComponentType(), modelScaling);
         }

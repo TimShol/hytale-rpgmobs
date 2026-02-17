@@ -331,9 +331,11 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
         if (minion.chainDeathAtTick > 0) {
             // Death already scheduled — check if it's time
             if (currentTick >= minion.chainDeathAtTick) {
-                LOGGER.atInfo().log("[MinionDespawn] Chain-death firing: summoner=%s tick=%d",
-                                    minion.summonerId,
-                                    currentTick
+                EliteMobsLogger.debug(LOGGER,
+                                      "[MinionDespawn] Chain-death firing: summoner=%s tick=%d",
+                                      EliteMobsLogLevel.INFO,
+                                      minion.summonerId,
+                                      currentTick
                 );
                 spawnChainDeathExplosion(npcRef, store);
                 killMinionViaHealth(npcRef, store, commandBuffer);
@@ -351,10 +353,12 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
                     death.assignedCount++;
                     minion.chainDeathAtTick = scheduledTick;
                     commandBuffer.replaceComponent(npcRef, eliteMobsPlugin.getSummonedMinionComponentType(), minion);
-                    LOGGER.atInfo().log("[MinionDespawn] Scheduled chain-death: summoner=%s atTick=%d (index=%d)",
-                                        minion.summonerId,
-                                        scheduledTick,
-                                        death.assignedCount - 1
+                    EliteMobsLogger.debug(LOGGER,
+                                          "[MinionDespawn] Scheduled chain-death: summoner=%s atTick=%d (index=%d)",
+                                          EliteMobsLogLevel.INFO,
+                                          minion.summonerId,
+                                          scheduledTick,
+                                          death.assignedCount - 1
                     );
                     return;
                 }
@@ -886,11 +890,14 @@ public final class EliteMobsSpawnSystem extends EntityTickingSystem<EntityStore>
                     return;
                 }
                 FlockMembershipSystems.join(summonerRef, flockRef, store);
-                LOGGER.atInfo().log("[FlockFollow] Created flock for summoner, joined as leader");
+                EliteMobsLogger.debug(LOGGER,
+                                      "[FlockFollow] Created flock for summoner, joined as leader",
+                                      EliteMobsLogLevel.INFO
+                );
             }
 
             FlockMembershipSystems.join(minionRef, flockRef, store);
-            LOGGER.atInfo().log("[FlockFollow] Minion joined summoner's flock");
+            EliteMobsLogger.debug(LOGGER, "[FlockFollow] Minion joined summoner's flock", EliteMobsLogLevel.INFO);
         } catch (Exception e) {
             LOGGER.atWarning().log("[FlockFollow] Failed to join minion to flock: %s", e.getMessage());
         }

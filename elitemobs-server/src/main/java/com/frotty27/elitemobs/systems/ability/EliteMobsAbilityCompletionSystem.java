@@ -49,8 +49,13 @@ public final class EliteMobsAbilityCompletionSystem extends EntityTickingSystem<
         if (lock.isChainStartPending()) return;
 
         if (lock.isWithinStartGracePeriod(currentTick)) {
-            LOGGER.atInfo().log("[AbilityCompletion] GRACE skip: ability=%s startedAt=%d currentTick=%d",
-                    lock.activeAbilityId, lock.chainStartedAtTick, currentTick);
+            EliteMobsLogger.debug(LOGGER,
+                                  "[AbilityCompletion] GRACE skip: ability=%s startedAt=%d currentTick=%d",
+                                  EliteMobsLogLevel.INFO,
+                                  lock.activeAbilityId,
+                                  lock.chainStartedAtTick,
+                                  currentTick
+            );
             return;
         }
 
@@ -64,8 +69,16 @@ public final class EliteMobsAbilityCompletionSystem extends EntityTickingSystem<
         EliteMobsTierComponent tier = store.getComponent(entityRef, plugin.getEliteMobsComponentType());
         int tierIndex = (tier != null) ? clampTierIndex(tier.tierIndex) : 0;
 
-        LOGGER.atInfo().log("[AbilityCompletion] DETECTED: ability=%s tier=%d pending=%b startedAt=%d currentTick=%d chainRunning=%b",
-                completedAbilityId, tierIndex, lock.chainStartPending, lock.chainStartedAtTick, currentTick, chainRunning);
+        EliteMobsLogger.debug(LOGGER,
+                              "[AbilityCompletion] DETECTED: ability=%s tier=%d pending=%b startedAt=%d currentTick=%d chainRunning=%b",
+                              EliteMobsLogLevel.INFO,
+                              completedAbilityId,
+                              tierIndex,
+                              lock.chainStartPending,
+                              lock.chainStartedAtTick,
+                              currentTick,
+                              chainRunning
+        );
 
         EliteMobAbilityCompletedEvent completedEvent = new EliteMobAbilityCompletedEvent(
                 entityRef, completedAbilityId, tierIndex

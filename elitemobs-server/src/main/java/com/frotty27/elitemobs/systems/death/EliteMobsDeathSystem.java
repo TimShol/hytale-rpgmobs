@@ -9,6 +9,8 @@ import com.frotty27.elitemobs.components.summon.EliteMobsSummonedMinionComponent
 import com.frotty27.elitemobs.config.EliteMobsConfig;
 import com.frotty27.elitemobs.exceptions.EliteMobsException;
 import com.frotty27.elitemobs.exceptions.EliteMobsSystemException;
+import com.frotty27.elitemobs.logs.EliteMobsLogLevel;
+import com.frotty27.elitemobs.logs.EliteMobsLogger;
 import com.frotty27.elitemobs.plugin.EliteMobsPlugin;
 import com.frotty27.elitemobs.utils.Constants;
 import com.hypixel.hytale.component.CommandBuffer;
@@ -116,8 +118,9 @@ public final class EliteMobsDeathSystem extends DeathSystems.OnDeathSystem {
                 UUID deadSummonerId = uuidComponent.getUuid();
                 long deathTick = plugin.getTickClock().getTick();
                 int aliveCount = tracking != null ? tracking.summonedAliveCount : 0;
-                LOGGER.atInfo().log(
+                EliteMobsLogger.debug(LOGGER,
                         "[DeathSystem] Summoner died, queuing minion chain despawn for summonerId=%s alive=%d",
+                                      EliteMobsLogLevel.INFO,
                         deadSummonerId,
                         aliveCount
                 );

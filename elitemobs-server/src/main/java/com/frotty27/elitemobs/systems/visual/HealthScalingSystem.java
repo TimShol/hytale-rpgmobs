@@ -9,6 +9,8 @@ import com.frotty27.elitemobs.components.lifecycle.EliteMobsModelScalingComponen
 import com.frotty27.elitemobs.components.progression.EliteMobsProgressionComponent;
 import com.frotty27.elitemobs.config.EliteMobsConfig;
 import com.frotty27.elitemobs.features.EliteMobsHealthScalingFeature;
+import com.frotty27.elitemobs.logs.EliteMobsLogLevel;
+import com.frotty27.elitemobs.logs.EliteMobsLogger;
 import com.frotty27.elitemobs.plugin.EliteMobsPlugin;
 import com.frotty27.elitemobs.utils.StoreHelpers;
 import com.hypixel.hytale.component.ArchetypeChunk;
@@ -26,6 +28,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import org.jspecify.annotations.NonNull;
 
+import java.util.Random;
+
 import static com.frotty27.elitemobs.utils.Constants.NPC_COMPONENT_TYPE;
 
 public class HealthScalingSystem extends EntityTickingSystem<EntityStore> implements IEliteMobsEventListener {
@@ -36,6 +40,7 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> implem
 
     private final EliteMobsPlugin plugin;
     private final EliteMobsHealthScalingFeature feature;
+    private final Random random = new Random();
 
     public HealthScalingSystem(EliteMobsPlugin plugin, EliteMobsHealthScalingFeature feature) {
         this.plugin = plugin;
@@ -53,26 +58,25 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> implem
         EliteMobsConfig config = plugin.getConfig();
         if (config == null) return;
 
-        if (!plugin.shouldReconcileThisTick()) return;
-
         Ref<EntityStore> npcRef = chunk.getReferenceTo(entityIndex);
 
         EliteMobsHealthScalingComponent healthComp = store.getComponent(npcRef, plugin.getHealthScalingComponentType());
+        if (healthComp == null || !config.healthConfig.enableMobHealthScaling || !healthComp.healthApplied) return;
 
-        if (healthComp != null && config.healthConfig.enableHealthScaling && healthComp.healthApplied) {
-            if (healthComp.healthFinalized && !healthComp.resyncDone) {
-                resyncAfterRestart(npcRef, store, commandBuffer, healthComp);
-                return;
-            }
+        if (!healthComp.healthFinalized && healthComp.shouldRetryHealthFinalization()) {
+            verifyHealthScalingFreshSpawn(npcRef, store, commandBuffer, healthComp);
+            return;
+        }
 
-            if (healthComp.healthFinalized) {
-                reconcileConfigChange(npcRef, store, commandBuffer, healthComp, config);
-                return;
-            }
+        if (!plugin.shouldReconcileThisTick()) return;
 
-            if (healthComp.shouldRetryHealthFinalization()) {
-                verifyHealthScalingFreshSpawn(npcRef, store, commandBuffer, healthComp);
-            }
+        if (healthComp.healthFinalized && !healthComp.resyncDone) {
+            resyncAfterRestart(npcRef, store, commandBuffer, healthComp);
+            return;
+        }
+
+        if (healthComp.healthFinalized) {
+            reconcileConfigChange(npcRef, store, commandBuffer, healthComp, config);
         }
     }
 
@@ -95,8 +99,13 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> implem
         float totalMultiplier = healthComp.appliedHealthMult + distanceHealthBonus;
         float actualMax = healthStatValue.getMax();
 
-        LOGGER.atInfo().log("[HealthScaling] Post-restart resync: actualMax=%.1f baseMax=%.1f totalMult=%.2f",
-                actualMax, healthComp.baseHealthMax, totalMultiplier);
+        EliteMobsLogger.debug(LOGGER,
+                              "[HealthScaling] Post-restart resync: actualMax=%.1f baseMax=%.1f totalMult=%.2f",
+                              EliteMobsLogLevel.INFO,
+                              actualMax,
+                              healthComp.baseHealthMax,
+                              totalMultiplier
+        );
 
         if (actualMax <= healthComp.baseHealthMax + HEALTH_MAX_EPSILON) {
             entityStats.putModifier(
@@ -109,7 +118,11 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> implem
                     )
             );
 
-            LOGGER.atInfo().log("[HealthScaling] Resync: registered modifier (mult=%.2f), engine will apply on flush", totalMultiplier);
+            EliteMobsLogger.debug(LOGGER,
+                                  "[HealthScaling] Resync: registered modifier (mult=%.2f), engine will apply on flush",
+                                  EliteMobsLogLevel.INFO,
+                                  totalMultiplier
+            );
 
             commandBuffer.replaceComponent(npcRef, EntityStatMap.getComponentType(), entityStats);
         }
@@ -129,16 +142,21 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> implem
 
         int tierIndex = tierComp.tierIndex;
         float configHealthMult = 1.0f;
-        if (config.healthConfig.healthMultiplierPerTier != null && config.healthConfig.healthMultiplierPerTier.length > tierIndex) {
-            configHealthMult = config.healthConfig.healthMultiplierPerTier[tierIndex];
+        if (config.healthConfig.mobHealthMultiplierPerTier != null && config.healthConfig.mobHealthMultiplierPerTier.length > tierIndex) {
+            configHealthMult = config.healthConfig.mobHealthMultiplierPerTier[tierIndex];
         }
 
         if (Math.abs(configHealthMult - healthComp.appliedHealthMult) <= 0.001f) {
             return;
         }
 
-        LOGGER.atInfo().log("[HealthScaling] Config reconcile: tier=%d oldMult=%.2f newMult=%.2f",
-                tierIndex, healthComp.appliedHealthMult, configHealthMult);
+        EliteMobsLogger.debug(LOGGER,
+                              "[HealthScaling] Config reconcile: tier=%d oldMult=%.2f newMult=%.2f",
+                              EliteMobsLogLevel.INFO,
+                              tierIndex,
+                              healthComp.appliedHealthMult,
+                              configHealthMult
+        );
 
         EntityStatMap entityStats = store.getComponent(npcRef, EntityStatMap.getComponentType());
         if (entityStats == null) return;
@@ -170,8 +188,11 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> implem
         healthComp.healthFinalizeTries = 0;
         commandBuffer.replaceComponent(npcRef, plugin.getHealthScalingComponentType(), healthComp);
 
-        LOGGER.atInfo().log("[HealthScaling] Config reconcile: registered new modifier (mult=%.2f), entering VERIFY",
-                totalMultiplier);
+        EliteMobsLogger.debug(LOGGER,
+                              "[HealthScaling] Config reconcile: registered new modifier (mult=%.2f), entering VERIFY",
+                              EliteMobsLogLevel.INFO,
+                              totalMultiplier
+        );
     }
 
 
@@ -198,8 +219,12 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> implem
                 )
         );
 
-        LOGGER.atInfo().log("[HealthScaling] Registered modifier: mult=%.2f beforeMax=%.1f",
-                totalMultiplier, maxHealthBefore);
+        EliteMobsLogger.debug(LOGGER,
+                              "[HealthScaling] Registered modifier: mult=%.2f beforeMax=%.1f",
+                              EliteMobsLogLevel.INFO,
+                              totalMultiplier,
+                              maxHealthBefore
+        );
 
         commandBuffer.replaceComponent(npcRef, EntityStatMap.getComponentType(), entityStats);
     }
@@ -207,7 +232,7 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> implem
 
     public void applyHealthScalingOnSpawn(Ref<EntityStore> npcRef, Store<EntityStore> store, CommandBuffer<EntityStore> commandBuffer) {
         EliteMobsConfig config = plugin.getConfig();
-        if (config == null || !config.healthConfig.enableHealthScaling) return;
+        if (config == null || !config.healthConfig.enableMobHealthScaling) return;
 
         EliteMobsTierComponent tierComponent = store.getComponent(npcRef, plugin.getEliteMobsComponentType());
         EliteMobsHealthScalingComponent healthScalingComponent = store.getComponent(npcRef,
@@ -221,8 +246,8 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> implem
 
         int tierIndex = tierComponent.tierIndex;
         float tierHealthMult = 1.0f;
-        if (config.healthConfig.healthMultiplierPerTier != null && config.healthConfig.healthMultiplierPerTier.length > tierIndex) {
-            tierHealthMult = config.healthConfig.healthMultiplierPerTier[tierIndex];
+        if (config.healthConfig.mobHealthMultiplierPerTier != null && config.healthConfig.mobHealthMultiplierPerTier.length > tierIndex) {
+            tierHealthMult = config.healthConfig.mobHealthMultiplierPerTier[tierIndex];
         }
 
 
@@ -232,6 +257,11 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> implem
         );
         if (progressionComponent != null) {
             distanceHealthBonus = progressionComponent.distanceHealthBonus();
+        }
+
+        float healthRandomVariance = config.healthConfig.mobHealthRandomVariance;
+        if (healthRandomVariance > 0f) {
+            tierHealthMult += (random.nextFloat() * 2f - 1f) * healthRandomVariance;
         }
 
         float totalMultiplier = tierHealthMult + distanceHealthBonus;
@@ -246,8 +276,15 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> implem
 
         float baseHealthMax = healthStatValue.getMax();
 
-        LOGGER.atInfo().log("[HealthScaling] BEFORE spawn scaling: baseMax=%.1f tierMult=%.2f distBonus=%.2f totalMult=%.2f tier=%d",
-                baseHealthMax, tierHealthMult, distanceHealthBonus, totalMultiplier, tierIndex);
+        EliteMobsLogger.debug(LOGGER,
+                              "[HealthScaling] BEFORE spawn scaling: baseMax=%.1f tierMult=%.2f distBonus=%.2f totalMult=%.2f tier=%d",
+                              EliteMobsLogLevel.INFO,
+                              baseHealthMax,
+                              tierHealthMult,
+                              distanceHealthBonus,
+                              totalMultiplier,
+                              tierIndex
+        );
 
         applyHealthModifier(npcRef, commandBuffer, entityStats, healthStatId, totalMultiplier);
 
@@ -261,8 +298,12 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> implem
             healthScalingComponent.resyncDone = true;
             commandBuffer.replaceComponent(npcRef, plugin.getHealthScalingComponentType(), healthScalingComponent);
 
-            LOGGER.atInfo().log("[HealthScaling] Component stored: healthApplied=true baseMax=%.1f appliedMult=%.2f",
-                    healthScalingComponent.baseHealthMax, healthScalingComponent.appliedHealthMult);
+            EliteMobsLogger.debug(LOGGER,
+                                  "[HealthScaling] Component stored: healthApplied=true baseMax=%.1f appliedMult=%.2f",
+                                  EliteMobsLogLevel.INFO,
+                                  healthScalingComponent.baseHealthMax,
+                                  healthScalingComponent.appliedHealthMult
+            );
         }
 
         float modelScale = 1.0f;
@@ -288,8 +329,6 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> implem
                 npcRef, tierIndex, tierHealthMult, damageMultiplier,
                 modelScale, baseHealthMax, finalHealth, false
         ));
-
-        plugin.requestReconcileOnNextWorldTick();
     }
 
 
@@ -307,10 +346,16 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> implem
         float actualCurrent = healthStatValue.get();
         float baseMax = healthComp.baseHealthMax;
 
-        LOGGER.atInfo().log("[HealthScaling] VERIFY tick: actualCurrent=%.1f actualMax=%.1f baseMax=%.1f tries=%d",
-                actualCurrent, actualMax, baseMax, healthComp.healthFinalizeTries);
+        EliteMobsLogger.debug(LOGGER,
+                              "[HealthScaling] VERIFY tick: actualCurrent=%.1f actualMax=%.1f baseMax=%.1f tries=%d",
+                              EliteMobsLogLevel.INFO,
+                              actualCurrent,
+                              actualMax,
+                              baseMax,
+                              healthComp.healthFinalizeTries
+        );
 
-        boolean modifierApplied = actualMax > (baseMax + 1.0f);
+        boolean modifierApplied = Math.abs(actualMax - baseMax) > 1.0f;
 
         if (modifierApplied) {
             if (actualCurrent < (actualMax - HEALTH_MAX_EPSILON)) {
@@ -318,16 +363,24 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> implem
                 entityStats.update();
                 commandBuffer.replaceComponent(npcRef, EntityStatMap.getComponentType(), entityStats);
 
-                LOGGER.atInfo().log("[HealthScaling] VERIFY top-off: current was %.1f, maximized to max=%.1f",
-                        actualCurrent, actualMax);
+                EliteMobsLogger.debug(LOGGER,
+                                      "[HealthScaling] VERIFY top-off: current was %.1f, maximized to max=%.1f",
+                                      EliteMobsLogLevel.INFO,
+                                      actualCurrent,
+                                      actualMax
+                );
             }
 
             healthComp.healthFinalized = true;
             healthComp.healthFinalizeTries = HEALTH_FINALIZE_MAX_TRIES;
             commandBuffer.replaceComponent(npcRef, plugin.getHealthScalingComponentType(), healthComp);
 
-            LOGGER.atInfo().log("[HealthScaling] VERIFY finalized: actualMax=%.1f (base was %.1f)",
-                    actualMax, baseMax);
+            EliteMobsLogger.debug(LOGGER,
+                                  "[HealthScaling] VERIFY finalized: actualMax=%.1f (base was %.1f)",
+                                  EliteMobsLogLevel.INFO,
+                                  actualMax,
+                                  baseMax
+            );
         } else {
             healthComp.incrementFinalizeTries();
 
@@ -337,14 +390,22 @@ public class HealthScalingSystem extends EntityTickingSystem<EntityStore> implem
                     entityStats.update();
                     commandBuffer.replaceComponent(npcRef, EntityStatMap.getComponentType(), entityStats);
 
-                    LOGGER.atInfo().log("[HealthScaling] VERIFY exhausted top-off: current was %.1f, maximized to max=%.1f",
-                            actualCurrent, actualMax);
+                    EliteMobsLogger.debug(LOGGER,
+                                          "[HealthScaling] VERIFY exhausted top-off: current was %.1f, maximized to max=%.1f",
+                                          EliteMobsLogLevel.INFO,
+                                          actualCurrent,
+                                          actualMax
+                    );
                 }
 
                 healthComp.healthFinalized = true;
 
-                LOGGER.atWarning().log("[HealthScaling] VERIFY exhausted: accepting actualMax=%.1f as final (base was %.1f). Modifier may not have applied.",
-                        actualMax, baseMax);
+                EliteMobsLogger.debug(LOGGER,
+                                      "[HealthScaling] VERIFY exhausted: accepting actualMax=%.1f as final (base was %.1f). Modifier may not have applied.",
+                                      EliteMobsLogLevel.WARNING,
+                                      actualMax,
+                                      baseMax
+                );
             }
 
             commandBuffer.replaceComponent(npcRef, plugin.getHealthScalingComponentType(), healthComp);

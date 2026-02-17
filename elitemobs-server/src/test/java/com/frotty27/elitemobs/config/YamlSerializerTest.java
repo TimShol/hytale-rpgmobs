@@ -1,13 +1,13 @@
 package com.frotty27.elitemobs.config;
 
+import com.frotty27.elitemobs.config.schema.YamlSerializer;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-
-import com.frotty27.elitemobs.config.schema.YamlSerializer;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -43,9 +43,9 @@ public class YamlSerializerTest {
             assertTrue(chance >= 0.0);
         }
 
-        assertNotNull(cfg.modelConfig.modelScaleMultiplierPerTier);
-        assertTrue(cfg.modelConfig.modelScaleMultiplierPerTier.length == 5);
-        for (float scale : cfg.modelConfig.modelScaleMultiplierPerTier) {
+        assertNotNull(cfg.modelConfig.mobModelScaleMultiplierPerTier);
+        assertTrue(cfg.modelConfig.mobModelScaleMultiplierPerTier.length == 5);
+        for (float scale : cfg.modelConfig.mobModelScaleMultiplierPerTier) {
             assertTrue(scale >= 0.0f);
         }
 

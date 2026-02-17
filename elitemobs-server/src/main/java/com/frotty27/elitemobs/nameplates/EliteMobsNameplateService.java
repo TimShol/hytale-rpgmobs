@@ -14,6 +14,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import static com.frotty27.elitemobs.utils.ClampingHelpers.clampTierIndex;
 
@@ -21,14 +22,14 @@ public final class EliteMobsNameplateService {
 
     private static final String DEFAULT_MPC_NAME = "NPC";
     private static final String DEFAULT_FAMILY_KEY = "default";
-    private static final java.util.Set<String> NOISE_SEGMENTS = java.util.Set.of(
+    private static final Set<String> NOISE_SEGMENTS = Set.of(
             "patrol",
             "wander",
             "big",
             "small"
     );
 
-    private static final java.util.Set<String> VARIANT_SEGMENTS = java.util.Set.of(
+    private static final Set<String> VARIANT_SEGMENTS = Set.of(
             "burnt",
             "frost",
             "sand",
@@ -66,7 +67,7 @@ public final class EliteMobsNameplateService {
 
         int clampedTierIndex = clampTierIndex(tierIndex);
 
-        boolean enabled = config.nameplatesConfig.nameplatesEnabled
+        boolean enabled = config.nameplatesConfig.enableMobNameplates
                 && areNameplatesEnabledForTier(config, clampedTierIndex)
                 && passesRoleFilters(config, roleName);
 
@@ -135,22 +136,22 @@ public final class EliteMobsNameplateService {
     }
 
     private static boolean areNameplatesEnabledForTier(EliteMobsConfig config, int clampedTierIndex) {
-        if (config.nameplatesConfig.nameplatesEnabledPerTier == null) return true;
-        if (config.nameplatesConfig.nameplatesEnabledPerTier.length <= clampedTierIndex) return true;
-        return config.nameplatesConfig.nameplatesEnabledPerTier[clampedTierIndex];
+        if (config.nameplatesConfig.mobNameplatesEnabledPerTier == null) return true;
+        if (config.nameplatesConfig.mobNameplatesEnabledPerTier.length <= clampedTierIndex) return true;
+        return config.nameplatesConfig.mobNameplatesEnabledPerTier[clampedTierIndex];
     }
 
     private static String getNameplatePrefixForTier(EliteMobsConfig config, int clampedTierIndex) {
-        if (config.nameplatesConfig.nameplatePrefixPerTier == null) return "";
-        if (config.nameplatesConfig.nameplatePrefixPerTier.length <= clampedTierIndex) return "";
-        return safe(config.nameplatesConfig.nameplatePrefixPerTier[clampedTierIndex]);
+        if (config.nameplatesConfig.monNameplatePrefixPerTier == null) return "";
+        if (config.nameplatesConfig.monNameplatePrefixPerTier.length <= clampedTierIndex) return "";
+        return safe(config.nameplatesConfig.monNameplatePrefixPerTier[clampedTierIndex]);
     }
 
     
     private static boolean passesRoleFilters(EliteMobsConfig config, String roleName) {
         String roleNameLowercase = (roleName == null) ? "" : roleName.toLowerCase(Locale.ROOT);
 
-        List<String> denyList = config.nameplatesConfig.nameplateMustNotContainRoles;
+        List<String> denyList = config.nameplatesConfig.mobNameplateMustNotContainRoles;
         if (denyList != null) {
             for (String forbiddenFragment : denyList) {
                 if (forbiddenFragment == null || forbiddenFragment.isBlank()) continue;
@@ -158,7 +159,7 @@ public final class EliteMobsNameplateService {
             }
         }
 
-        List<String> allowList = config.nameplatesConfig.nameplateMustContainRoles;
+        List<String> allowList = config.nameplatesConfig.mobNameplateMustContainRoles;
         if (allowList == null || allowList.isEmpty()) return true;
 
         boolean hasAnyAllowRule = false;

@@ -48,7 +48,9 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+import java.io.IOException;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -169,10 +171,18 @@ public final class EliteMobsPlugin extends JavaPlugin {
     private void reloadNpcRoleAssetsIfPossible() {
     }
 
+    private static final String[] CONFIG_FILES = {"core.yml", "visuals.yml", "spawning.yml", "stats.yml", "gear.yml", "loot.yml", "consumables.yml", "effects.yml", "abilities.yml", "mobrules.yml"};
+
     public synchronized void loadOrCreateEliteMobsConfig() {
         Path modDirectory = getModDirectory();
 
         String oldVersion = YamlSerializer.readConfigVersion(modDirectory, "core.yml", "configVersion");
+
+        if ("0.0.0".equals(oldVersion) && Files.exists(modDirectory.resolve("core.yml"))) {
+            LOGGER.atWarning().log(
+                    "[EliteMobs] Config version missing (0.0.0) — wiping all config files to regenerate fresh defaults.");
+            deleteConfigFiles(modDirectory);
+        }
 
         EliteMobsConfig defaults = new EliteMobsConfig();
         try {
@@ -202,6 +212,19 @@ public final class EliteMobsPlugin extends JavaPlugin {
 
     private Path getModDirectory() {
         return getDataDirectory().getParent().resolve("EliteMobs");
+    }
+
+    private void deleteConfigFiles(Path directory) {
+        for (String fileName : CONFIG_FILES) {
+            try {
+                Path file = directory.resolve(fileName);
+                if (Files.deleteIfExists(file)) {
+                    LOGGER.atInfo().log("Deleted outdated config: %s", fileName);
+                }
+            } catch (IOException e) {
+                LOGGER.atWarning().log("Failed to delete config file %s: %s", fileName, e.getMessage());
+            }
+        }
     }
 
     private void registerComponents() {

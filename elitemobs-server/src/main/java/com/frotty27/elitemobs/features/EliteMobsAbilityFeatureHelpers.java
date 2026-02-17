@@ -2,6 +2,8 @@ package com.frotty27.elitemobs.features;
 
 import com.frotty27.elitemobs.config.EliteMobsConfig.AbilityConfig;
 import com.frotty27.elitemobs.config.EliteMobsConfig.SummonAbilityConfig;
+import com.frotty27.elitemobs.logs.EliteMobsLogLevel;
+import com.frotty27.elitemobs.logs.EliteMobsLogger;
 import com.frotty27.elitemobs.utils.AbilityHelpers;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.ComponentType;
@@ -61,19 +63,27 @@ public final class EliteMobsAbilityFeatureHelpers {
             for (var entry : chains.entrySet()) {
                 InteractionChain chain = entry.getValue();
                 if (chain != null) {
-                    LOGGER.atInfo().log("[tryStartInteraction] Active chain: type=%s for rootId='%s'",
+                    EliteMobsLogger.debug(LOGGER,
+                                          "[tryStartInteraction] Active chain: type=%s for rootId='%s'",
+                                          EliteMobsLogLevel.INFO,
                             chain.getType() != null ? chain.getType().name() : "null",
                             rootInteractionId);
                 }
             }
         } else {
-            LOGGER.atInfo().log("[tryStartInteraction] No active chains before starting '%s'", rootInteractionId);
+            EliteMobsLogger.debug(LOGGER,
+                                  "[tryStartInteraction] No active chains before starting '%s'",
+                                  EliteMobsLogLevel.INFO,
+                                  rootInteractionId
+            );
         }
 
         if (!chains.isEmpty()) {
             for (InteractionChain chain : chains.values()) {
                 if (chain != null) {
-                    LOGGER.atInfo().log("[tryStartInteraction] Pre-cancelling %s chain before starting '%s'",
+                    EliteMobsLogger.debug(LOGGER,
+                                          "[tryStartInteraction] Pre-cancelling %s chain before starting '%s'",
+                                          EliteMobsLogLevel.INFO,
                             chain.getType() != null ? chain.getType().name() : "null", rootInteractionId);
                     interactionManager.cancelChains(chain);
                 }

@@ -753,8 +753,6 @@ public final class EliteMobsAssetGenerator {
             Map<String, Object> role = new LinkedHashMap<>();
             role.put("Type", "Variant");
             role.put("Reference", baseRoleId);
-            role.put("SpawnParticles", "Undead_Digging");
-            role.put("SpawnParticlesOffset", List.of(0, 1, 0));
             role.put("Modify", new LinkedHashMap<>());
 
             Path rolePath = outputRootDirectory.resolve(Paths.get(
