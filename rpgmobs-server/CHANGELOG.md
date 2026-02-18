@@ -2,6 +2,13 @@
 
 All notable changes to RPGMobs will be documented in this file.
 
+## [2.0.1] - 2026-02-18
+
+### Fixed
+
+- Potions and food no longer apply effects when consumed — the consumable interaction templates were missing the `Effect` Replace block that triggers the actual buff/heal
+- Asset generation fails on startup due to `${...}` placeholders being split across multiple lines in all template files, causing unresolved placeholders in the generated JSON
+
 ## [2.0.0] - 2026-02-18
 
 ### Changed

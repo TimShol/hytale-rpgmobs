@@ -4,7 +4,7 @@ plugins {
 }
 
 group = rootProject.property('group')
-version = rootProject.property('version')
+version = '1.0.0'
 base.archivesName.set('RPGMobs-API')
 
 dependencies {

@@ -23,8 +23,8 @@ dependencies {
 tasks.processResources {
     def expandProps = [
             'name'          : 'RPG Mobs',
-            'version'       : project.version as String,
-            'group'         : project.group as String,
+            'version'       : rootProject.version as String,
+            'group'         : rootProject.group as String,
             'description'   : rootProject.findProperty('description') ?: '',
             'website'       : rootProject.findProperty('website') ?: '',
             'server_version': rootProject.findProperty('server_version') ?: '',

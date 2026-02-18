@@ -1,9 +1,6 @@
 {
   "Interactions": [
-    $
-    {
-      features.ChargeLeap.config.templates.entryInteraction
-    }
+    ${features.ChargeLeap.config.templates.entryInteraction}
   ],
   "Tags": {
     "Attack": [

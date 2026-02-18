@@ -3,13 +3,8 @@
   "DamageResistance": {
     "Projectile": [
       {
-        "Amount": $
-      {
-        features.ProjectileResistance.config.amountMultiplierPerTier
-      },
-      "CalculationType"
-      :
-      "Multiplicative"
+        "Amount": ${features.ProjectileResistance.config.amountMultiplierPerTier},
+        "CalculationType": "Multiplicative"
       }
     ]
   }

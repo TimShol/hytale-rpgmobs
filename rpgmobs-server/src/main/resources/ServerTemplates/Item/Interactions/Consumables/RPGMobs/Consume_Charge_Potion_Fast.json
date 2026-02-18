@@ -18,43 +18,45 @@
         "ClearAnimationOnFinish": true,
         "ClearSoundEventOnFinish": true
       },
-      "HorizontalSpeedMultiplier": $
-    {
-      consumables.small_potions.horizontalSpeedMultiplier
-    },
-    "Next"
-    :
-    {
-      "${consumables.small_potions.consumeDuration}": {
-        "Type": "ModifyInventory",
-        "AdjustHeldItemQuantity": -1,
-        "Next": {
-          "Type": "Serial",
-          "Interactions": [
-            {
-              "Type": "Replace",
-              "Var": "ConsumedSFX",
-              "DefaultOk": true,
-              "DefaultValue": {
-                "Interactions": [
-                  "Consumed_SFX"
-                ]
+      "HorizontalSpeedMultiplier": ${consumables.small_potions.horizontalSpeedMultiplier},
+      "Next": {
+        "${consumables.small_potions.consumeDuration}": {
+          "Type": "ModifyInventory",
+          "AdjustHeldItemQuantity": -1,
+          "Next": {
+            "Type": "Serial",
+            "Interactions": [
+              {
+                "Type": "Replace",
+                "Var": "ConsumedSFX",
+                "DefaultOk": true,
+                "DefaultValue": {
+                  "Interactions": [
+                    "Consumed_SFX"
+                  ]
+                }
+              },
+              {
+                "Type": "Replace",
+                "DefaultValue": {
+                  "Interactions": [
+                    "Effect"
+                  ]
+                },
+                "Var": "Effect"
+              },
+              {
+                "Type": "Simple",
+                "RunTime": 0.2,
+                "$Comment": "Delay before next consume cycle can start to prevent sound overlap"
               }
-            },
-            {
-              "Type": "Simple",
-              "RunTime": 0.2,
-              "$Comment": "Delay before next consume cycle can start to prevent sound overlap"
-            }
-          ]
+            ]
+          }
         }
+      },
+      "Failed": {
+        "Type": "Simple"
       }
-    },
-    "Failed"
-    :
-    {
-      "Type": "Simple"
-    }
     }
   ]
 }
