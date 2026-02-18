@@ -73,7 +73,7 @@ There are 3 progression styles currently:
 configuration files under:
 
 ```
-%APPDATA%\Hytale\UserData\Saves\<save name>\mods\RPGMobs
+%APPDATA%\Hytale\UserData\Saves\(your save name)\mods\RPGMobs
 ```
 
 ![Config](https://media.forgecdn.net/attachments/1498/351/configdirectory-png.png)
@@ -98,7 +98,7 @@ configuration files under:
 * Download the RPGMobs `.jar` from CurseForge
 * Place it in your server's `mods` folder
 * Start the server to generate default configuration
-* Edit the YAML files under `%APPDATA%\Hytale\UserData\Saves&lt;save name&gt;\mods\RPGMobs`
+* Edit the YAML files under `%APPDATA%\Hytale\UserData\Saves\(your save name)\mods\RPGMobs`
 * Run `/rpgmobs reload` to apply changes without restarting
 
 ## Uninstalling
@@ -141,7 +141,7 @@ Solo developer project — this mod is developed and maintained by one person (m
 
 <span style="color:#843fa1"><strong>Which Hytale version is supported?</strong></span>
 
-<span style="color:#2dc26b"><em>Hytale <strong>Update 2</strong>.</em></span>
+<span style="color:#2dc26b"><em>Hytale <strong>Update 3</strong>.</em></span>
 
 <span style="color:#843fa1"><strong>Does this work on existing worlds?</strong></span>
 
