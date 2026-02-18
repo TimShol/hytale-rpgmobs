@@ -43,7 +43,6 @@ and tier-exclusive mechanics that will make each encounter feel distinct.
 * Tiered loot tables with configurable drop multipliers (0x to 6x)
 * Rarity-weighted equipment from curated weapon and armor catalogs
 * Chance to drop equipped items on death
-* Consumable drops including food, potions, gems, and materials
 * 30+ custom loot entries (ores, bars, gems, life essence, …)
 
 ![Loot](https://media.forgecdn.net/attachments/1498/353/loot-png.png)
@@ -69,7 +68,7 @@ There are 3 progression styles currently:
 
 ## Configuration
 
-<span style="color:#2dc26b"><strong>Almost everything is configurable!</strong></span> RPGMobs generates 10 YAML
+<span style="color:#2dc26b"><strong>Almost everything is configurable!</strong></span> RPGMobs generates 9 YAML
 configuration files under:
 
 ```

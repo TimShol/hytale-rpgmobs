@@ -51,7 +51,6 @@ Full configuration guides, developer API reference, and troubleshooting:
 - Tiered loot tables with configurable drop multipliers
 - Rarity-weighted equipment from curated weapon and armor catalogs
 - Chance to drop equipped items on death
-- Consumable drops (potions, gems, materials)
 
 ### Identity
 
@@ -104,7 +103,6 @@ Full configuration guides, developer API reference, and troubleshooting:
 | `abilities.yml`   | Ability toggles, cooldowns, per-tier scaling, gating |
 | `visuals.yml`     | Nameplates, model scaling                            |
 | `effects.yml`     | Status effects and particles                         |
-| `consumables.yml` | Consumable drop definitions                          |
 | `mobrules.yml`    | NPC rules, weapon overrides, family assignments      |
 
 ## Runtime Reload
