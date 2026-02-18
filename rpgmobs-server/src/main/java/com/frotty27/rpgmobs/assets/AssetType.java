@@ -2,7 +2,7 @@ package com.frotty27.rpgmobs.assets;
 
 public enum AssetType {
 
-    ABILITIES("abilities"), EFFECTS("effects"), CONSUMABLES("consumables");
+    ABILITIES("abilities"), EFFECTS("effects");
 
     private final String id;
 

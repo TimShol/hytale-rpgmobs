@@ -4,7 +4,6 @@ import com.frotty27.rpgmobs.assets.AssetConfig;
 import com.frotty27.rpgmobs.assets.AssetType;
 import com.frotty27.rpgmobs.assets.TieredAssetConfig;
 import com.frotty27.rpgmobs.config.schema.*;
-import com.frotty27.rpgmobs.features.RPGMobsConsumablesFeature;
 import com.frotty27.rpgmobs.features.RPGMobsProjectileResistanceEffectFeature;
 import com.frotty27.rpgmobs.features.RPGMobsUndeadSummonAbilityFeature;
 import com.frotty27.rpgmobs.systems.ability.AbilityIds;
@@ -67,7 +66,6 @@ public final class RPGMobsConfig {
     public final AssetGeneratorConfig assetGenerator = new AssetGeneratorConfig();
     public final AbilitiesConfig abilitiesConfig = new AbilitiesConfig();
     public final EffectsConfig effectsConfig = new EffectsConfig();
-    public final ConsumablesConfig consumablesConfig = new ConsumablesConfig();
     public final DebugConfig debugConfig = new DebugConfig();
     public final ReconcileConfig reconcileConfig = new ReconcileConfig();
 
@@ -1202,51 +1200,6 @@ public final class RPGMobsConfig {
         list.add(createExtraDropRule("Rock_Gem_Zephyr", 0.02, 4, 4, 1, 1));
 
         return list;
-    }
-
-    public static final class ConsumableConfig extends AssetConfig {
-        public float horizontalSpeedMultiplier = 0.6f;
-        public float consumeDuration = 1f;
-
-        @Override
-        public AssetType namespace() {
-            return AssetType.CONSUMABLES;
-        }
-    }
-
-    public static final class ConsumablesConfig {
-        @Default
-        @Cfg(group = "Consumables", file = "consumables.yml")
-        public Map<String, ConsumableConfig> defaultConsumables = defaultConsumables();
-    }
-
-    private static Map<String, ConsumableConfig> defaultConsumables() {
-        Map<String, ConsumableConfig> m = new LinkedHashMap<>();
-        ConsumableConfig food_tier1 = new ConsumableConfig();
-        food_tier1.consumeDuration = 1.0f;
-        food_tier1.horizontalSpeedMultiplier = 0.7f;
-        m.put(RPGMobsConsumablesFeature.CONSUMABLE_FOOD_TIER1, food_tier1);
-
-        ConsumableConfig food_tier2 = new ConsumableConfig();
-        food_tier2.consumeDuration = 1.2f;
-        food_tier2.horizontalSpeedMultiplier = 0.7f;
-        m.put(RPGMobsConsumablesFeature.CONSUMABLE_FOOD_TIER2, food_tier2);
-
-        ConsumableConfig food_tier3 = new ConsumableConfig();
-        food_tier3.consumeDuration = 1.4f;
-        food_tier3.horizontalSpeedMultiplier = 0.7f;
-        m.put(RPGMobsConsumablesFeature.CONSUMABLE_FOOD_TIER3, food_tier3);
-
-        ConsumableConfig all_small_potions = new ConsumableConfig();
-        all_small_potions.consumeDuration = 1.2f;
-        all_small_potions.horizontalSpeedMultiplier = 0.7f;
-        m.put(RPGMobsConsumablesFeature.CONSUMABLE_SMALL_POTIONS, all_small_potions);
-
-        ConsumableConfig all_big_potions = new ConsumableConfig();
-        all_big_potions.consumeDuration = 1.8f;
-        all_big_potions.horizontalSpeedMultiplier = 0.7f;
-        m.put(RPGMobsConsumablesFeature.CONSUMABLE_BIG_POTIONS, all_big_potions);
-        return m;
     }
 
     public static final class EffectsConfig {
@@ -4062,7 +4015,6 @@ public final class RPGMobsConfig {
         return switch (type) {
             case ABILITIES -> abilitiesConfig.defaultAbilities;
             case EFFECTS -> effectsConfig.defaultEntityEffects;
-            case CONSUMABLES -> consumablesConfig.defaultConsumables;
         };
     }
 

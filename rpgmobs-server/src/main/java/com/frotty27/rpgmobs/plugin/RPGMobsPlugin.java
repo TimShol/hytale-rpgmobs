@@ -170,7 +170,7 @@ public final class RPGMobsPlugin extends JavaPlugin {
     private void reloadNpcRoleAssetsIfPossible() {
     }
 
-    private static final String[] CONFIG_FILES = {"core.yml", "visuals.yml", "spawning.yml", "stats.yml", "gear.yml", "loot.yml", "consumables.yml", "effects.yml", "abilities.yml", "mobrules.yml"};
+    private static final String[] CONFIG_FILES = {"core.yml", "visuals.yml", "spawning.yml", "stats.yml", "gear.yml", "loot.yml", "effects.yml", "abilities.yml", "mobrules.yml"};
 
     public synchronized void loadOrCreateRPGMobsConfig() {
         Path modDirectory = getModDirectory();

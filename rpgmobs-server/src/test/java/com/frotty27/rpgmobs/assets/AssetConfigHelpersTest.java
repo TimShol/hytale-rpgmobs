@@ -52,11 +52,11 @@ public class AssetConfigHelpersTest {
     }
 
     @Test
-    void safeCastReturnsNullForNonTiered() {
+    void safeCastReturnsNullForNoTemplates() {
         RPGMobsConfig cfg = new RPGMobsConfig();
-        RPGMobsConfig.ConsumableConfig consumable = new RPGMobsConfig.ConsumableConfig();
+        RPGMobsConfig.EntityEffectConfig effect = new RPGMobsConfig.EntityEffectConfig();
 
-        String id = AssetConfigHelpers.getTieredAssetIdFromOnlyTemplate(cfg, consumable, 0);
+        String id = AssetConfigHelpers.getTieredAssetIdFromOnlyTemplate(cfg, effect, 0);
         assertTrue(id == null || id.isBlank());
     }
 }
