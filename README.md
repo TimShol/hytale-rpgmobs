@@ -15,7 +15,7 @@ hardcore servers.
 <br/><br/>
 <strong>Plugin</strong>
 <br/><br/>
-<a href="https://www.curseforge.com/hytale/mods/RPGMobs">
+<a href="https://www.curseforge.com/hytale/mods/rpgmobs">
 <img src="https://img.shields.io/badge/Download-F16436?style=for-the-badge&logo=curseforge&logoColor=white" alt="Download RPGMobs"/>
 </a>
 </td>
@@ -24,7 +24,7 @@ hardcore servers.
 <br/><br/>
 <strong>API</strong>
 <br/><br/>
-<a href="https://www.curseforge.com/hytale/mods/RPGMobs">
+<a href="https://www.curseforge.com/hytale/mods/rpgmobs-api">
 <img src="https://img.shields.io/badge/Download-F16436?style=for-the-badge&logo=curseforge&logoColor=white" alt="Download RPGMobs API"/>
 </a>
 </td>
@@ -110,7 +110,7 @@ Full configuration guides, developer API reference, and troubleshooting:
 ## Runtime Reload
 
 ```text
-/RPGMobs reload
+/rpgmobs reload
 ```
 
 Reloads all YAML configuration from disk. Spawn logic updates immediately. Existing elites are reconciled over a
@@ -118,7 +118,7 @@ configurable tick window.
 
 ## API Overview
 
-RPGMobs ships a separate `RPGMobs-api` artifact for mod developers. Add it as a compile-time dependency to listen to
+RPGMobs ships a separate `rpgmobs-api` artifact for mod developers. Add it as a compile-time dependency to listen to
 events, query RPG mob state, or modify loot and damage.
 
 See the [API documentation](https://docs.RPGMobs.frotty27.com/api/overview) for integration details.
@@ -138,7 +138,7 @@ Repeat until all remaining elite NPCs are removed. Do not kill them directly as 
 RPGMobs works alongside other Hytale mods. Nameplate rendering is handled by
 [NameplateBuilder](https://github.com/TimShol/hytale-nameplate-builder), which provides the tiered nameplate
 display used by RPGMobs. Mod developers looking to extend or interact with RPGMobs should use the
-`RPGMobs-api` artifact — see the [API documentation](https://docs.RPGMobs.frotty27.com/api/overview) for
+`rpgmobs-api` artifact — see the [API documentation](https://docs.RPGMobs.frotty27.com/api/overview) for
 integration details.
 
 [![GitHub](https://img.shields.io/badge/GitHub-NameplateBuilder-7C3AED?style=for-the-badge&logo=github&logoColor=white)](https://github.com/TimShol/hytale-nameplate-builder)
